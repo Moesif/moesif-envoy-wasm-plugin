@@ -32,8 +32,6 @@ kubectl create namespace gloo-system
 helm install gloo gloo/gloo --namespace gloo-system
 kubectl -n gloo-system get svc
 
-# configure the gloo-proxy service as a load balancer
-kubectl apply -f gloo-loadbalancer.yaml
 # deploy the echo service
 kubectl apply -f echo.yaml
 # create a TLS certificate for the Gloo ingress
