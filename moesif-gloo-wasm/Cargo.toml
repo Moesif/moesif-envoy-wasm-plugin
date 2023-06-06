@@ -13,3 +13,14 @@ proxy-wasm = { version = "0.2.1", package = "proxy-wasm" }
 log = { version = "0.4.17", package = "log" }
 serde = { version = "1.0.158", features = ["derive"] }
 serde_json = "1.0.94"
+
+[workspace.metadata.raze]
+# The WORKSPACE relative path to the Cargo.toml file. Set to root.
+workspace_path = "//cargo"
+# The rustc target to generate BUILD rules for.
+targets = ["wasm32-unknown-unknown"]
+# Settings of dependencies to always be compiled for the host platform.
+genmode = "Remote"  # Or "Vendored"
+# This causes aliases for dependencies to be rendered in the BUILD
+# file located next to this `Cargo.toml` file.
+package_aliases_dir = "."
