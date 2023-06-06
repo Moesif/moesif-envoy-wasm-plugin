@@ -1,5 +1,5 @@
 [package]
-name = "gloo-filter"
+name = "gloomoesif"
 version = "0.1.0"
 edition = "2018"
 
@@ -11,6 +11,6 @@ path = "filter.rs"
 [dependencies]
 proxy-wasm = { version = "0.2.1", package = "proxy-wasm" }
 log = { version = "0.4.17", package = "log" }
+chrono = { version = "0.4.26", default-features = false, features = ["clock", "std"] }
 serde = { version = "1.0.158", features = ["derive"] }
 serde_json = "1.0.94"
-chrono = "0.4.26"
