@@ -32,8 +32,8 @@ pub struct HttpLogger {
 }
 
 impl HttpContext for HttpLogger {
-    fn on_http_request_headers(&mut self, _: usize) -> Action {
-        self.data.request = RequestInfo {
+        fn on_http_request_headers(&mut self, _num_headers: usize, _end_of_stream: bool) -> Action {
+            self.data.request = RequestInfo {
             time: Utc::now().to_rfc3339(),
             headers: self.get_http_request_headers(),
             uri: self.get_http_request_header(":path").unwrap_or_default(),
@@ -51,7 +51,7 @@ impl HttpContext for HttpLogger {
         Action::Continue
     }
 
-    fn on_http_response_headers(&mut self, _: usize) -> Action {
+    fn on_http_response_headers(&mut self, _num_headers: usize, _end_of_stream: bool) -> Action {
         self.data.response = Some(ResponseInfo {
             status: self.get_http_response_header(":status").unwrap_or_default(),
             time: Utc::now().to_rfc3339(),
