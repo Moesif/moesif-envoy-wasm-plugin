@@ -42,3 +42,6 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 kubectl create secret tls gloo-tls --key tls.key --cert tls.crt -n gloo-system
 # deploy the echo virtual services and routes
 kubectl apply -f echo-virtualservice.yaml
+# authenticate k8s to azure container registry
+# This step was performed manually by authenticating the VMSS
+# for the node pool with a managed identity
