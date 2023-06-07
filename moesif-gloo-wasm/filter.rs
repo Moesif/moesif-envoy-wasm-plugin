@@ -1,5 +1,4 @@
 use chrono::Utc;
-use log::info;
 use proxy_wasm::traits::*;
 use proxy_wasm::types::*;
 use serde::Deserialize;
@@ -83,7 +82,7 @@ impl HttpContext for HttpLogger {
 
     fn on_log(&mut self) {
         let json = serde_json::to_string(&self.data).unwrap();
-        info!("Request & Response Data: {}", json);
+        log::info!("Request & Response Data: {}", json);
     }
 }
 
@@ -93,10 +92,10 @@ impl RootContext for HttpLogger {
     }
 
     fn on_vm_start(&mut self, _: usize) -> bool {
-        let tick_period = Duration::from_secs(2);
+        let tick_period = Duration::from_secs(20);
         self.set_tick_period(tick_period);
         let config = self.get_vm_configuration();
-        info!("VM configuration: {:?}", config);
+        log::info!("VM configuration: {:?}", config);
         true
     }
 
@@ -110,6 +109,7 @@ impl RootContext for HttpLogger {
                         return false;
                     }
                     self.config = config;
+                    log::info!("Loaded configuration: {:?}", self.config.moesif_application_id);
                     return true;
                 }
                 Err(e) => {
@@ -124,11 +124,11 @@ impl RootContext for HttpLogger {
 
     fn on_tick(&mut self) {
         let now = Utc::now();
-        info!("on_tick: {}", now.to_rfc3339());
+        log::info!("on_tick: {}", now.to_rfc3339());
     }
 
     fn on_queue_ready(&mut self, _queue_id: u32) {
-        info!("on_queue_ready: {}", _queue_id);
+        log::info!("on_queue_ready: {}", _queue_id);
     }
 }
 
