@@ -7,6 +7,13 @@ use serde::Serialize;
 use std::time::Duration;
 
 #[derive(Default, Serialize, Deserialize)]
+struct Config {
+    moesif_application_id: Option<String>,
+    user_id_header: Option<String>,
+    company_id_header: Option<String>,
+}
+
+#[derive(Default, Serialize, Deserialize)]
 struct RequestInfo {
     time: String,
     headers: Vec<(String, String)>,
@@ -30,6 +37,7 @@ struct HttpRequestData {
 
 #[derive(Default)]
 pub struct HttpLogger {
+    config: Config,
     data: HttpRequestData,
 }
 
@@ -93,9 +101,25 @@ impl RootContext for HttpLogger {
     }
 
     fn on_configure(&mut self, _: usize) -> bool {
-        let config = self.get_plugin_configuration();
-        info!("Plugin configuration: {:?}", config);
-        true
+        if let Some(config_bytes) = self.get_plugin_configuration() {
+            let config_str = std::str::from_utf8(&config_bytes).unwrap();
+            match serde_json::from_str::<Config>(config_str) {
+                Ok(config) => {
+                    if config.moesif_application_id.is_none() {
+                        log::error!("Missing required moesif_application_id in configuration.");
+                        return false;
+                    }
+                    self.config = config;
+                    return true;
+                }
+                Err(e) => {
+                    log::error!("Failed to parse configuration: {:?}", e);
+                    return false;
+                }
+            }
+        }
+        log::error!("Failed to read configuration.");
+        false
     }
 
     fn on_tick(&mut self) {
