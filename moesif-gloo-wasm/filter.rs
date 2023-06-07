@@ -37,12 +37,9 @@ impl Context for HttpLogger {}
 
 impl HttpContext for HttpLogger {
     fn on_http_request_headers(&mut self, _num_headers: usize, _end_of_stream: bool) -> Action {
-        self.data.request = RequestInfo {
-            time: Utc::now().to_rfc3339(),
-            headers: self.get_http_request_headers(),
-            uri: self.get_http_request_header(":path").unwrap_or_default(),
-            body: Vec::new(),
-        };
+        self.data.request.time = Utc::now().to_rfc3339();
+        self.data.request.headers = self.get_http_request_headers();
+        self.data.request.uri = self.get_http_request_header(":path").unwrap_or_default();
 
         Action::Continue
     }
@@ -105,9 +102,13 @@ impl RootContext for HttpLogger {
         let now = Utc::now();
         info!("on_tick: {}", now.to_rfc3339());
     }
+
+    fn on_queue_ready(&mut self, _queue_id: u32) {
+        info!("on_queue_ready: {}", _queue_id);
+    }
 }
 
 proxy_wasm::main! {{
-    proxy_wasm::set_log_level(LogLevel::Trace);
+    proxy_wasm::set_log_level(LogLevel::Info);
     proxy_wasm::set_root_context(|_| -> Box<dyn RootContext> { Box::new(HttpLogger::default()) });
 }}
