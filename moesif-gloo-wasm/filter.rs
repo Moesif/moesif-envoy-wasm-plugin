@@ -11,7 +11,7 @@ use serde::Serialize;
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 struct Config {
-    moesif_application_id: Option<String>,
+    moesif_application_id: String,
     user_id_header: Option<String>,
     company_id_header: Option<String>,
 }
@@ -19,16 +19,21 @@ struct Config {
 #[derive(Default, Serialize, Deserialize)]
 struct RequestInfo {
     time: String,
-    headers: HashMap<String, String>,
+    verb: String,
     uri: String,
+    headers: HashMap<String, String>,
+    transfer_encoding: Option<String>,
+    api_version: Option<String>,
+    ip_address: Option<String>,
     body: serde_json::Value,
 }
 
 #[derive(Default, Serialize, Deserialize)]
 struct ResponseInfo {
-    status: String,
     time: String,
+    status: String,
     headers: HashMap<String, String>,
+    ip_address: Option<String>,
     body: serde_json::Value,
 }
 
@@ -36,6 +41,9 @@ struct ResponseInfo {
 struct HttpRequestData {
     request: RequestInfo,
     response: Option<ResponseInfo>,
+    user_id: Option<String>,
+    company_id: Option<String>,
+    metadata: serde_json::Value,
 }
 
 #[derive(Default)]
@@ -52,7 +60,19 @@ impl HttpContext for HttpLogger {
     fn on_http_request_headers(&mut self, _: usize, _: bool) -> Action {
         self.data.request.time = Utc::now().to_rfc3339();
         self.data.request.headers = header_list_to_map(self.get_http_request_headers());
+
         self.data.request.uri = self.get_http_request_header(":path").unwrap_or_default();
+        self.data.request.verb = self.get_http_request_header(":method").unwrap_or_else(|| "GET".into());
+        self.data.request.api_version = self.get_http_request_header("x-api-version");
+        self.data.request.ip_address = self.get_http_request_header("x-forwarded-for");
+        self.data.request.transfer_encoding = self.get_http_request_header("transfer-encoding");
+        self.data.request.headers.retain(|k, _| !k.starts_with(":"));
+        if let Some(user_id_header) = &self.config.user_id_header {
+            self.data.user_id = self.get_http_request_header(user_id_header)
+        }
+        if let Some(company_id_header) = &self.config.company_id_header {
+            self.data.company_id = self.get_http_request_header(company_id_header);
+        }
 
         Action::Continue
     }
@@ -73,13 +93,15 @@ impl HttpContext for HttpLogger {
     }
 
     fn on_http_response_headers(&mut self, _: usize, _: bool) -> Action {
-        self.data.response = Some(ResponseInfo {
-            status: self.get_http_response_header(":status").unwrap_or_default(),
+        let mut response = ResponseInfo {
             time: Utc::now().to_rfc3339(),
+            status: self.get_http_response_header(":status").unwrap_or_default(),
             headers: header_list_to_map(self.get_http_response_headers()),
+            ip_address: self.get_http_request_header("x-forwarded-for"),
             body: serde_json::Value::Null,
-        });
-
+        };
+        response.headers.retain(|k, _| !k.starts_with(":"));
+        self.data.response = Some(response);
         Action::Continue
     }
 
@@ -120,22 +142,20 @@ impl RootContext for HttpLogger {
             let config_str = std::str::from_utf8(&config_bytes).unwrap();
             match serde_json::from_str::<Config>(config_str) {
                 Ok(config) => {
-                    if config.moesif_application_id.is_none() {
-                        log::error!("Missing required moesif_application_id in configuration.");
-                        return false;
-                    }
                     self.config = Arc::new(config);
                     log::info!("Loaded configuration: {:?}", self.config.moesif_application_id);
-                    return true;
-                }
+                    true
+                },
                 Err(e) => {
+                    // This will also catch the error when moesif_application_id is missing
                     log::error!("Failed to parse configuration: {:?}", e);
-                    return false;
+                    false
                 }
             }
+        } else {
+            log::error!("Failed to read configuration.");
+            false
         }
-        log::error!("Failed to read configuration.");
-        false
     }
 
     fn on_tick(&mut self) {
