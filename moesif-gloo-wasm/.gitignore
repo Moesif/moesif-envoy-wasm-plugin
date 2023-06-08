@@ -4,3 +4,4 @@ bazel-testlogs
 bazel-workspace
 target/
 cargo/
+.idea/

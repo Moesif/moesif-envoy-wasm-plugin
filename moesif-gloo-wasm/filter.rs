@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use base64::Engine as _;
 use chrono::Utc;
 use proxy_wasm::traits::*;
 use proxy_wasm::types::*;
 use serde::Deserialize;
 use serde::Serialize;
-use serde_json::json;
-
-use base64::Engine as _;
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 struct Config {
