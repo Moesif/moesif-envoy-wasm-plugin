@@ -49,7 +49,7 @@ pub struct HttpLogger {
 impl Context for HttpLogger {}
 
 impl HttpContext for HttpLogger {
-    fn on_http_request_headers(&mut self, _num_headers: usize, _end_of_stream: bool) -> Action {
+    fn on_http_request_headers(&mut self, _: usize, _: bool) -> Action {
         self.data.request.time = Utc::now().to_rfc3339();
         self.data.request.headers = header_list_to_map(self.get_http_request_headers());
         self.data.request.uri = self.get_http_request_header(":path").unwrap_or_default();
@@ -57,12 +57,12 @@ impl HttpContext for HttpLogger {
         Action::Continue
     }
 
-    fn on_http_request_body(&mut self, _num_elements: usize, _end_of_stream: bool) -> Action {
+    fn on_http_request_body(&mut self, _num_elements: usize, end_of_stream: bool) -> Action {
         if let Some(body_bytes) = self.get_http_request_body(0, _num_elements) {
             self.request_body.extend(body_bytes);
         }
 
-        if _end_of_stream {
+        if end_of_stream {
             // request_body is not readable after mem::take which is used to avoid copying it unnecessarily
             let body = std::mem::take(&mut self.request_body);
             let content_type = self.data.request.headers.get("content-type");
@@ -72,7 +72,7 @@ impl HttpContext for HttpLogger {
         Action::Continue
     }
 
-    fn on_http_response_headers(&mut self, _num_headers: usize, _end_of_stream: bool) -> Action {
+    fn on_http_response_headers(&mut self, _: usize, _: bool) -> Action {
         self.data.response = Some(ResponseInfo {
             status: self.get_http_response_header(":status").unwrap_or_default(),
             time: Utc::now().to_rfc3339(),
@@ -83,12 +83,12 @@ impl HttpContext for HttpLogger {
         Action::Continue
     }
 
-    fn on_http_response_body(&mut self, _num_elements: usize, _end_of_stream: bool) -> Action {
-        if let Some(body_bytes) = self.get_http_response_body(0, _num_elements) {
+    fn on_http_response_body(&mut self, num_elements: usize, end_of_stream: bool) -> Action {
+        if let Some(body_bytes) = self.get_http_response_body(0, num_elements) {
             self.response_body.extend(body_bytes);
         }
 
-        if _end_of_stream {
+        if end_of_stream {
             if let Some(response) = self.data.response.as_mut() {
                 // response_body is not readable after mem::take which is used to avoid copying it unnecessarily
                 let body = std::mem::take(&mut self.response_body);
@@ -107,13 +107,6 @@ impl HttpContext for HttpLogger {
 }
 
 impl RootContext for HttpLogger {
-    fn create_http_context(&self, _: u32) -> Option<Box<dyn HttpContext>> {
-        Some(Box::new(HttpLogger{
-            config: Arc::clone(&self.config),
-            ..Default::default()
-        }))
-    }
-
     fn on_vm_start(&mut self, _: usize) -> bool {
         let tick_period = Duration::from_secs(20);
         self.set_tick_period(tick_period);
@@ -152,6 +145,13 @@ impl RootContext for HttpLogger {
 
     fn on_queue_ready(&mut self, _queue_id: u32) {
         log::info!("on_queue_ready: {}", _queue_id);
+    }
+
+    fn create_http_context(&self, _: u32) -> Option<Box<dyn HttpContext>> {
+        Some(Box::new(HttpLogger{
+            config: Arc::clone(&self.config),
+            ..Default::default()
+        }))
     }
 
     fn get_type(&self) -> Option<ContextType> {
