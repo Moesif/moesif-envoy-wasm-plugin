@@ -165,7 +165,7 @@ proxy_wasm::main! {{
 }}
 
 fn header_list_to_map(headers: Vec<(String, String)>) -> HashMap<String, String> {
-    headers.into_iter().collect::<std::collections::HashMap<_, _>>()
+    headers.into_iter().collect::<HashMap<_, _>>()
 }
 
 fn body_bytes_to_value(body: Vec<u8>, content_type: Option<&String>) -> serde_json::Value {
@@ -175,11 +175,11 @@ fn body_bytes_to_value(body: Vec<u8>, content_type: Option<&String>) -> serde_js
 
     if let Some(content_type) = content_type {
         if content_type.as_str() == "application/json" {
-            match serde_json::from_slice::<serde_json::Value>(&body) {
-                Ok(json) => return json,
+            return match serde_json::from_slice::<serde_json::Value>(&body) {
+                Ok(json) => json,
                 Err(_) => {
                     let encoded = base64::engine::general_purpose::STANDARD.encode(&body);
-                    return serde_json::Value::String(encoded);
+                    serde_json::Value::String(encoded)
                 }
             }
         }
