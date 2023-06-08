@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 use base64::Engine as _;
@@ -39,7 +40,7 @@ struct HttpRequestData {
 
 #[derive(Default)]
 pub struct HttpLogger {
-    config: Config,
+    config: Arc<Config>,
     data: HttpRequestData,
     request_body: Vec<u8>,
     response_body: Vec<u8>,
@@ -108,7 +109,7 @@ impl HttpContext for HttpLogger {
 impl RootContext for HttpLogger {
     fn create_http_context(&self, _: u32) -> Option<Box<dyn HttpContext>> {
         Some(Box::new(HttpLogger{
-            config: self.config.clone(),
+            config: Arc::clone(&self.config),
             ..Default::default()
         }))
     }
@@ -130,7 +131,7 @@ impl RootContext for HttpLogger {
                         log::error!("Missing required moesif_application_id in configuration.");
                         return false;
                     }
-                    self.config = config;
+                    self.config = Arc::new(config);
                     log::info!("Loaded configuration: {:?}", self.config.moesif_application_id);
                     return true;
                 }
