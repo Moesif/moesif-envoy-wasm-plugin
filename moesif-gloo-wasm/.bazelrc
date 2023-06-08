@@ -1,3 +1,0 @@
-# Force Bazel to use --target=wasm32-unknown-unknown.
-startup --output_user_root=/home/brian/.cache/bazel
-build --platforms=@io_bazel_rules_rust//rust/platform:wasm
