@@ -38,7 +38,7 @@ static_resources:
                 configuration:
                   "@type": "type.googleapis.com/google.protobuf.StringValue"
                   value: |
-                    {"moesif_application_id":"myid1234", "user_id_header":"X-Moesif-User"}
+                    {"moesif_application_id":"eyJhcHAiOiI2ODk6MTgiLCJ2ZXIiOiIyLjAiLCJvcmciOiI4Njo1IiwiaWF0IjoxNjg1NTc3NjAwfQ.p3Kin-DkswtssQtDm_gReePByn8XoPOzHB48lqOym8w", "user_id_header":"X-Moesif-User"}
                 vm_config:
                   vm_id: "my_vm_id"
                   code:
@@ -51,7 +51,7 @@ static_resources:
   clusters:
   - name: echo_service
     type: strict_dns
-    lb_policy: round_robin
+    dns_refresh_rate: 500s
     load_assignment:
       cluster_name: echo_cluster
       endpoints:
@@ -60,4 +60,20 @@ static_resources:
             address:
               socket_address:
                 address: echo
-                port_value: 5678
+                port_value: 80
+  - name: moesif_api
+    type: logical_dns
+    dns_refresh_rate: 500s
+    load_assignment:
+      cluster_name: moesif_api
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: api-dev.moesif.net
+                port_value: 443
+    transport_socket:
+      name: envoy.transport_sockets.tls
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext

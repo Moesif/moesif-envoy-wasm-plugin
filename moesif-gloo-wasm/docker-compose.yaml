@@ -7,16 +7,26 @@ services:
       - "9901:9901"
     volumes:
       - ./envoy.yaml:/etc/envoy/envoy.yaml
-      - ./target/wasm32-wasi/release:/etc/envoy/proxy-wasm-plugins
+      - ./target/wasm32-wasi/debug:/etc/envoy/proxy-wasm-plugins
     networks:
       - envoymesh
     cpus: 1
+    command:
+    - envoy
+    - -c
+    - /etc/envoy/envoy.yaml
+    - --concurrency
+    - "1"
+    - --log-level
+    - debug
 
   echo:
-    image: hashicorp/http-echo
-    command: ["-text=Hello from echo service"]
+    build: /home/brian/Code/echologger
+    image: echologger:latest
     ports:
-      - "5678:5678"
+      - 5678:80
+    environment:
+      PORT: 80
     networks:
       - envoymesh
 
