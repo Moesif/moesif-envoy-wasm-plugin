@@ -97,7 +97,7 @@ impl HttpContext for HttpLogger {
             time: Utc::now().to_rfc3339(),
             status: self.get_http_response_header(":status").unwrap_or_default(),
             headers: header_list_to_map(self.get_http_response_headers()),
-            ip_address: self.get_http_request_header("x-forwarded-for"),
+            ip_address: self.get_http_response_header("x-forwarded-for"),
             body: serde_json::Value::Null,
         };
         response.headers.retain(|k, _| !k.starts_with(":"));
