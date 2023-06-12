@@ -253,37 +253,13 @@ impl RootContext for EventRootContext {
     }
 
     fn on_tick(&mut self) {
-        let now = Utc::now();
-        log::debug!("on_tick: {}", now.to_rfc3339());
-
-        match self.dequeue_shared_queue(self.config.queue_id) {
-            Ok(Some(event_bytes)) => {
-                // Dispatch the HTTP request
-                self.add_event(event_bytes);
-            }
-            Ok(None) => {
-                log::info!("No event in the queue");
-            }
-            Err(e) => {
-                log::error!("Failed to dequeue event: {:?}", e);
-            }
-        }
+        log::debug!("on_tick: {}", Utc::now().to_rfc3339());
+        self.poll_queue();
     }
 
     fn on_queue_ready(&mut self, _queue_id: u32) {
-        log::info!("on_queue_ready: {}", _queue_id);
-        match self.dequeue_shared_queue(self.config.queue_id) {
-            Ok(Some(event_bytes)) => {
-                log::info!("Dequeued event from shared queue,len(bytes) = {}", event_bytes.len());
-                self.add_event(event_bytes);
-            }
-            Ok(None) => {
-                log::info!("No event in the queue");
-            }
-            Err(e) => {
-                log::error!("Failed to dequeue event: {:?}", e);
-            }
-        }
+        log::debug!("on_queue_ready: {}", _queue_id);
+        self.poll_queue();
     }
 
     fn create_http_context(&self, _: u32) -> Option<Box<dyn HttpContext>> {
@@ -299,7 +275,18 @@ impl RootContext for EventRootContext {
 }
 
 impl EventRootContext {
-    fn add_event(self: &EventRootContext, event_bytes: Bytes) {
+    fn poll_queue(&self) {
+        match self.dequeue_shared_queue(self.config.queue_id) {
+            Ok(Some(event_bytes)) => {
+                self.add_event(event_bytes);
+            }
+            Ok(None) => {}
+            Err(e) => {
+                log::error!("Failed to dequeue event: {:?}", e);
+            }
+        }
+    }
+    fn add_event(&self, event_bytes: Bytes) {
         let mut buffer: MutexGuard<Vec<Bytes>> = self.event_byte_buffer.lock().unwrap();
         buffer.push(event_bytes);
         if buffer.len() >= 10 {
@@ -330,12 +317,11 @@ impl EventRootContext {
         event_json_array
     }
 
-    fn dispatch_http_event(self: &EventRootContext, body: Bytes) -> u32 {
+    fn dispatch_http_event(&self, body: Bytes) -> u32 {
         // TODO: make these optional configs.
-        // The upstream name and authority for your HTTP request
+        // The upstream name and authority for the collector events endpoint
         let upstream = "moesif_api";
         let authority = "api-dev.moesif.net";
-        // The headers for your HTTP request.
         let content_length = body.len().to_string();
         let application_id = self.config.moesif_application_id.clone();
         let headers = vec![
@@ -351,10 +337,10 @@ impl EventRootContext {
         let trailers = vec![];
         let timeout = Duration::from_secs(5);
 
-        // Dispatch the HTTP call. The result is a token that uniquely identifies this call
+        // Dispatch the HTTP request. The result is a token that uniquely identifies this call
         match self.dispatch_http_call(upstream, headers, Some(&body), trailers, timeout) {
             Ok(token_id) => {
-                log::info!("Dispatched HTTP call with token ID {}", token_id);
+                log::debug!("Dispatched HTTP call with token ID {}", token_id);
                 token_id
             }
             Err(e) => {
@@ -366,6 +352,6 @@ impl EventRootContext {
 }
 
 proxy_wasm::main! {{
-    proxy_wasm::set_log_level(LogLevel::Trace);
+    proxy_wasm::set_log_level(LogLevel::Debug);
     proxy_wasm::set_root_context(|_| -> Box<dyn RootContext> { Box::new(EventRootContext::default()) });
 }}

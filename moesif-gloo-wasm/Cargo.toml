@@ -1,12 +1,10 @@
 [package]
-name = "gloomoesif"
+name = "moesif_api_envoy_filter"
 version = "0.1.0"
 edition = "2018"
 
 [lib]
 crate-type = ["cdylib"]
-name = "gloomoesif"
-path = "filter.rs"
 
 [dependencies]
 proxy-wasm = { version = "0.2.1", package = "proxy-wasm" }

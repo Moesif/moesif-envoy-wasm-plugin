@@ -77,18 +77,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e496a50fda8aacccc86d7529e2c1e0892dbd0f898a6b5645b5561b89c3210efa"
 
 [[package]]
-name = "gloomoesif"
-version = "0.1.0"
-dependencies = [
- "base64",
- "chrono",
- "log",
- "proxy-wasm",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "hashbrown"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -146,6 +134,18 @@ name = "log"
 version = "0.4.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "518ef76f2f87365916b142844c16d8fefd85039bc5699050210a7778ee1cd1de"
+
+[[package]]
+name = "moesif_api_envoy_filter"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "chrono",
+ "log",
+ "proxy-wasm",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "num-traits"

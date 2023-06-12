@@ -33,17 +33,21 @@ static_resources:
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
               config:
-                name: "gloomoesif"
-                root_id: "root_id"
+                name: "moesif_api"
+                root_id: "moesif_api_root_id"
                 configuration:
                   "@type": "type.googleapis.com/google.protobuf.StringValue"
                   value: |
-                    {"moesif_application_id":"eyJhcHAiOiI2ODk6MTgiLCJ2ZXIiOiIyLjAiLCJvcmciOiI4Njo1IiwiaWF0IjoxNjg1NTc3NjAwfQ.p3Kin-DkswtssQtDm_gReePByn8XoPOzHB48lqOym8w", "user_id_header":"X-Moesif-User"}
+                    {
+                      "moesif_application_id":"eyJhcHAiOiI2ODk6MTgiLCJ2ZXIiOiIyLjAiLCJvcmciOiI4Njo1IiwiaWF0IjoxNjg1NTc3NjAwfQ.p3Kin-DkswtssQtDm_gReePByn8XoPOzHB48lqOym8w", 
+                      "user_id_header":"X-Moesif-User",
+                      "company_id_header":"X-Moesif-Company-Id"
+                    }
                 vm_config:
-                  vm_id: "my_vm_id"
+                  vm_id: "moesif_api_vm"
                   code:
                     local:
-                      filename: "/etc/envoy/proxy-wasm-plugins/gloomoesif.wasm"
+                      filename: "/etc/envoy/proxy-wasm-plugins/moesif_api_envoy_filter.wasm"
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
