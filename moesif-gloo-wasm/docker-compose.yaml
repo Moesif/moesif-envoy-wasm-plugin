@@ -4,19 +4,11 @@ services:
     build: 
       context: .
       dockerfile: Cargo-build.dockerfile
-      args:
-        USER_ID: ${UID:-1000}
-        GROUP_ID: ${GID:-1000}
-    hostname: envoy
     ports:
       - "10000:10000"
       - "9901:9901"
-    volumes:
-      - ./target:/build/target
-      - ./envoy.yaml:/etc/envoy/envoy.yaml
     networks:
       - envoymesh
-    cpus: 1
     command:
     - envoy
     - -c
