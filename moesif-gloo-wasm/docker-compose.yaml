@@ -20,13 +20,10 @@ services:
     - --log-level
     - debug
 
-  echo:
-    build: /home/brian/Code/echologger
-    image: echologger:latest
+  echologger:
+    image: moesif.azurecr.io/echologger:test
     ports:
-      - 5678:80
-    environment:
-      PORT: 80
+      - 8080
     networks:
       - envoymesh
 

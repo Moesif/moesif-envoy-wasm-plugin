@@ -5,3 +5,4 @@ bazel-workspace
 target/
 cargo/
 .idea/
+venv/
