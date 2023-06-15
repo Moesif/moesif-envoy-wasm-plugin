@@ -16,7 +16,7 @@ services:
     - --concurrency
     - "1"
     - --log-level
-    - debug
+    - info
 
   echologger:
     image: moesif.azurecr.io/echologger:test
