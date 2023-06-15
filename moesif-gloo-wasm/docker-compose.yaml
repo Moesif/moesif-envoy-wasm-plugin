@@ -1,13 +1,19 @@
+version: '3.8'
 services:
   envoy:
-    image: envoyproxy/envoy:v1.25.6
+    build: 
+      context: .
+      dockerfile: Cargo-build.dockerfile
+      args:
+        USER_ID: ${UID:-1000}
+        GROUP_ID: ${GID:-1000}
     hostname: envoy
     ports:
       - "10000:10000"
       - "9901:9901"
     volumes:
+      - ./target:/build/target
       - ./envoy.yaml:/etc/envoy/envoy.yaml
-      - ./target/wasm32-wasi/debug:/etc/envoy/proxy-wasm-plugins
     networks:
       - envoymesh
     cpus: 1
@@ -23,7 +29,7 @@ services:
   echologger:
     image: moesif.azurecr.io/echologger:test
     ports:
-      - 8080
+      - "8080:8080"
     networks:
       - envoymesh
 
