@@ -2,10 +2,10 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
 use chrono::Utc;
-use proxy_wasm::traits::{Context, RootContext, HttpContext};
+use proxy_wasm::traits::{Context, HttpContext, RootContext};
 use proxy_wasm::types::{Bytes, ContextType};
 
-use crate::config::Config;
+use crate::config::{Config, EnvConfig};
 use crate::http_context::EventHttpContext;
 
 const EVENT_QUEUE: &str = "moesif_event_queue";
@@ -67,11 +67,17 @@ impl RootContext for EventRootContext {
     fn on_configure(&mut self, _: usize) -> bool {
         if let Some(config_bytes) = self.get_plugin_configuration() {
             let config_str = std::str::from_utf8(&config_bytes).unwrap();
-            match serde_json::from_str::<Config>(config_str) {
-                Ok(mut config) => {
-                    config.queue_id = self.register_shared_queue(EVENT_QUEUE);
+            match serde_json::from_str::<EnvConfig>(config_str) {
+                Ok(env) => {
+                    let config = Config {
+                        env,
+                        event_queue_id: self.register_shared_queue(EVENT_QUEUE),
+                    };
                     self.config = Arc::new(config);
-                    log::info!("Loaded configuration: {:?}", self.config.moesif_application_id);
+                    log::info!(
+                        "Loaded configuration: {:?}",
+                        self.config.env.moesif_application_id
+                    );
                     true
                 }
                 Err(e) => {
@@ -89,11 +95,15 @@ impl RootContext for EventRootContext {
     fn on_tick(&mut self) {
         log::debug!("on_tick: {}", Utc::now().to_rfc3339());
         self.poll_queue();
+        // This will send all events in the buffer to enforce the batch_max_wait
+        self.drain_and_send(1);
     }
 
     fn on_queue_ready(&mut self, _queue_id: u32) {
         log::debug!("on_queue_ready: {}", _queue_id);
         self.poll_queue();
+        // This will send all full batches in the buffer to enforce the batch_max_size
+        self.drain_and_send(self.config.env.batch_max_size);
     }
 
     fn create_http_context(&self, _: u32) -> Option<Box<dyn HttpContext>> {
@@ -109,23 +119,35 @@ impl RootContext for EventRootContext {
 }
 
 impl EventRootContext {
+    // dequeue all events and add them to the buffer until the queue is empty
     fn poll_queue(&self) {
-        match self.dequeue_shared_queue(self.config.queue_id) {
-            Ok(Some(event_bytes)) => {
-                self.add_event(event_bytes);
-            }
-            Ok(None) => {}
-            Err(e) => {
-                log::error!("Failed to dequeue event: {:?}", e);
+        let mut more = true;
+        while more {
+            match self.dequeue_shared_queue(self.config.event_queue_id) {
+                Ok(Some(event_bytes)) => {
+                    self.add_event(event_bytes);
+                }
+                Ok(None) => {
+                    more = false;
+                }
+                Err(e) => {
+                    more = false;
+                    log::error!("Failed to dequeue event: {:?}", e);
+                }
             }
         }
     }
+
     fn add_event(&self, event_bytes: Bytes) {
         let mut buffer: MutexGuard<Vec<Bytes>> = self.event_byte_buffer.lock().unwrap();
         buffer.push(event_bytes);
-        if buffer.len() >= 10 {
-            // buffer is a Vec<Bytes>, so we need to write it as a JSON array [event1, event2, ...]
-            let body = self.write_events_json(buffer.drain(..).collect());
+    }
+
+    fn drain_and_send(&self, drain_at_least: usize) {
+        let mut buffer: MutexGuard<Vec<Bytes>> = self.event_byte_buffer.lock().unwrap();
+        while buffer.len() >= drain_at_least {
+            let end = std::cmp::min(buffer.len(), self.config.env.batch_max_size);
+            let body = self.write_events_json(buffer.drain(..end).collect());
             self.dispatch_http_event(body);
         }
     }
@@ -157,7 +179,7 @@ impl EventRootContext {
         let upstream = "moesif_api";
         let authority = "api-dev.moesif.net";
         let content_length = body.len().to_string();
-        let application_id = self.config.moesif_application_id.clone();
+        let application_id = self.config.env.moesif_application_id.clone();
         let headers = vec![
             (":scheme", "https"),
             (":method", "POST"),
@@ -174,7 +196,7 @@ impl EventRootContext {
         // Dispatch the HTTP request. The result is a token that uniquely identifies this call
         match self.dispatch_http_call(upstream, headers, Some(&body), trailers, timeout) {
             Ok(token_id) => {
-                log::debug!("Dispatched HTTP call with token ID {}", token_id);
+                log::info!("Dispatched HTTP call with token ID {}", token_id);
                 token_id
             }
             Err(e) => {

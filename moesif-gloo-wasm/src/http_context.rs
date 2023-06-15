@@ -31,10 +31,10 @@ impl HttpContext for EventHttpContext {
         self.event.request.ip_address = self.get_http_request_header("x-forwarded-for");
         self.event.request.transfer_encoding = self.get_http_request_header("transfer-encoding");
         self.event.request.headers.retain(|k, _| !k.starts_with(":"));
-        if let Some(user_id_header) = &self.config.user_id_header {
+        if let Some(user_id_header) = &self.config.env.user_id_header {
             self.event.user_id = self.get_http_request_header(user_id_header)
         }
-        if let Some(company_id_header) = &self.config.company_id_header {
+        if let Some(company_id_header) = &self.config.env.company_id_header {
             self.event.company_id = self.get_http_request_header(company_id_header);
         }
 
@@ -98,7 +98,7 @@ impl EventHttpContext {
     fn enqueue_event(self: &EventHttpContext) {
         let event_bytes = serde_json::to_vec(&self.event).unwrap();
 
-        match self.enqueue_shared_queue(self.config.queue_id, Some(&event_bytes)) {
+        match self.enqueue_shared_queue(self.config.event_queue_id, Some(&event_bytes)) {
             Ok(_) => {
                 log::info!("Enqueued event to shared queue");
             }
