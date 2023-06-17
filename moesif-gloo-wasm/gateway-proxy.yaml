@@ -1,0 +1,45 @@
+apiVersion: gateway.solo.io/v1
+kind: Gateway
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"gateway.solo.io/v1","kind":"Gateway","metadata":{"annotations":{},"labels":{"app":"gloo"},"name":"gateway-proxy","namespace":"gloo-system"},"spec":{"bindAddress":"::","bindPort":8080,"httpGateway":{},"proxyNames":["gateway-proxy"],"ssl":false,"useProxyProto":false}}
+  creationTimestamp: "2023-06-06T16:26:14Z"
+  generation: 4
+  labels:
+    app: gloo
+  name: gateway-proxy
+  namespace: gloo-system
+  resourceVersion: "245511"
+  uid: c56c7552-cbeb-4444-9785-d804d7d59a5f
+spec:
+  bindAddress: '::'
+  bindPort: 8080
+  httpGateway:
+    options:
+      wasm:
+        filters:
+        - config:
+            '@type': type.googleapis.com/google.protobuf.StringValue
+            value: |
+                    {
+                      "moesif_application_id":"eyJhcHAiOiI2ODk6MTgiLCJ2ZXIiOiIyLjAiLCJvcmciOiI4Njo1IiwiaWF0IjoxNjg1NTc3NjAwfQ.p3Kin-DkswtssQtDm_gReePByn8XoPOzHB48lqOym8w", 
+                      "user_id_header":"X-Moesif-User",
+                      "company_id_header":"X-Moesif-Company-Id"
+                    }
+          image: webassemblyhub.io/brian_moesif/moesif_api_envoy_filter:v0.1.0
+          name: moesif_api
+          rootId: moesif_api_root_id
+  proxyNames:
+  - gateway-proxy
+  ssl: false
+  useProxyProto: false
+status:
+  statuses:
+    gloo-system:
+      reportedBy: gloo
+      state: Accepted
+      subresourceStatuses:
+        '*v1.Proxy.gateway-proxy_gloo-system':
+          reportedBy: gloo
+          state: Accepted

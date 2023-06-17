@@ -148,7 +148,7 @@ impl EventRootContext {
         while buffer.len() >= drain_at_least {
             let end = std::cmp::min(buffer.len(), self.config.env.batch_max_size);
             let body = self.write_events_json(buffer.drain(..end).collect());
-            self.dispatch_http_event(body);
+            self.dispatch_http_request("POST", "/v1/events/batch", body);
         }
     }
 
@@ -173,18 +173,14 @@ impl EventRootContext {
         event_json_array
     }
 
-    fn dispatch_http_event(&self, body: Bytes) -> u32 {
-        // TODO: make these optional configs.
-        // The upstream name and authority for the collector events endpoint
-        let upstream = "moesif_api";
-        let authority = "api-dev.moesif.net";
+    fn dispatch_http_request(&self, method: &str, path: &str,  body: Bytes) -> u32 {
         let content_length = body.len().to_string();
         let application_id = self.config.env.moesif_application_id.clone();
         let headers = vec![
             (":scheme", "https"),
-            (":method", "POST"),
-            (":path", "/v1/events/batch"),
-            (":authority", authority),
+            (":method", method),
+            (":path", path),
+            (":authority", &self.config.env.base_uri),
             ("accept", "*/*"),
             ("content-type", "application/json"),
             ("content-length", &content_length),
@@ -194,9 +190,9 @@ impl EventRootContext {
         let timeout = Duration::from_secs(5);
 
         // Dispatch the HTTP request. The result is a token that uniquely identifies this call
-        match self.dispatch_http_call(upstream, headers, Some(&body), trailers, timeout) {
+        match self.dispatch_http_call(&self.config.env.upstream, headers, Some(&body), trailers, timeout) {
             Ok(token_id) => {
-                log::info!("Dispatched HTTP call with token ID {}", token_id);
+                log::info!("Dispatched request to {} and got token {}", path, token_id);
                 token_id
             }
             Err(e) => {
