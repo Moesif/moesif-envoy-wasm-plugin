@@ -39,9 +39,10 @@ static_resources:
                   "@type": "type.googleapis.com/google.protobuf.StringValue"
                   value: |
                     {
-                      "moesif_application_id":"eyJhcHAiOiI2ODk6MTgiLCJ2ZXIiOiIyLjAiLCJvcmciOiI4Njo1IiwiaWF0IjoxNjg1NTc3NjAwfQ.p3Kin-DkswtssQtDm_gReePByn8XoPOzHB48lqOym8w", 
+                      "base_uri": "api.moesif.net",
+                      "moesif_application_id":"eyJhcHAiOiIxMzI6Mzc3IiwidmVyIjoiMi4wIiwib3JnIjoiODg6MjEwIiwiaWF0IjoxNjg1NTc3NjAwfQ.ovxETFvEFypjQYLQvhn5CZms0zSp4gyya1GQ_7h32Xc", 
                       "user_id_header":"X-Moesif-User",
-                      "company_id_header":"X-Moesif-Company-Id"
+                      "company_id_header":"X-Moesif-Company"
                     }
                 vm_config:
                   vm_id: "moesif_api_vm"
@@ -75,7 +76,7 @@ static_resources:
         - endpoint:
             address:
               socket_address:
-                address: api-dev.moesif.net
+                address: api.moesif.net
                 port_value: 443
     transport_socket:
       name: envoy.transport_sockets.tls
