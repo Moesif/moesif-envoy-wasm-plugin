@@ -1,6 +1,5 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
+use std::collections::HashMap;
 
 #[derive(Default, Clone)]
 pub struct Config {
@@ -41,18 +40,18 @@ fn default_base_uri() -> String {
 
 #[derive(Default, Serialize, Deserialize, Debug)]
 pub struct AppConfigResponse {
-    org_id: String,
-    app_id: String,
-    sample_rate: i32,
-    block_bot_traffic: bool,
-    user_sample_rate: HashMap<String, i32>,
-    company_sample_rate: HashMap<String, i32>,
-    user_rules: HashMap<String, Vec<EntityRuleValues>>,
-    company_rules: HashMap<String, Vec<EntityRuleValues>>,
-    ip_addresses_blocked_by_name: HashMap<String, String>,
-    regex_config: Vec<RegexRule>,
-    billing_config_jsons: HashMap<String, String>,
-    e_tag: String,
+    pub org_id: String,
+    pub app_id: String,
+    pub sample_rate: i32,
+    pub block_bot_traffic: bool,
+    pub user_sample_rate: HashMap<String, i32>,
+    pub company_sample_rate: HashMap<String, i32>,
+    pub user_rules: HashMap<String, Vec<EntityRuleValues>>,
+    pub company_rules: HashMap<String, Vec<EntityRuleValues>>,
+    pub ip_addresses_blocked_by_name: HashMap<String, String>,
+    pub regex_config: Vec<RegexRule>,
+    pub billing_config_jsons: HashMap<String, String>,
+    pub e_tag: Option<String>,
 }
 
 impl AppConfigResponse {
@@ -62,55 +61,38 @@ impl AppConfigResponse {
             ..Default::default()
         }
     }
+
+    pub fn get_sampling_percentage(&self, user_id: Option<&str>, company_id: Option<&str>) -> i32 {
+        if let Some(user_id) = user_id {
+            if let Some(user_rate) = self.user_sample_rate.get(user_id) {
+                return *user_rate;
+            }
+        }
+
+        if let Some(company_id) = company_id {
+            if let Some(company_rate) = self.company_sample_rate.get(company_id) {
+                return *company_rate;
+            }
+        }
+
+        self.sample_rate
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct EntityRuleValues {
-    rules: String,
-    values: HashMap<String, String>,
+    pub rules: String,
+    pub values: Option<HashMap<String, String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RegexRule {
-    conditions: Vec<RegexCondition>,
-    sample_rate: i32,
+    pub conditions: Vec<RegexCondition>,
+    pub sample_rate: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RegexCondition {
-    path: String,
-    value: String,
-}
-
-pub async fn get_app_config() -> Result<AppConfigResponse, Box<dyn std::error::Error>> {
-    let client = HttpClient::new();
-    let url = format!("{}/v1/config", CONFIG.base_uri);
-    let response = client.get(&url)
-        .header("Content-Type", "application/json; charset=utf-8")
-        .header("X-Moesif-Application-Id", &CONFIG.moesif_application_id)
-        .timeout(Duration::from_secs(10))
-        .send()
-        .await?;
-
-    let mut config: AppConfigResponse = serde_json::from_str(&response.text().await?)?;
-    config.e_tag = response.headers().get("X-Moesif-Config-Etag").unwrap().to_str().unwrap().to_string();
-    Ok(config)
-}
-
-pub fn get_sampling_percentage(user_id: Option<&str>, company_id: Option<&str>) -> i32 {
-    let config = APP_CONFIG.read().unwrap();
-
-    if let Some(user_id) = user_id {
-        if let Some(user_rate) = config.user_sample_rate.get(user_id) {
-            return *user_rate;
-        }
-    }
-
-    if let Some(company_id) = company_id {
-        if let Some(company_rate) = config.company_sample_rate.get(company_id) {
-            return *company_rate;
-        }
-    }
-
-    config.sample_rate
+    pub path: String,
+    pub value: String,
 }
