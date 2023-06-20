@@ -7,15 +7,16 @@ use proxy_wasm::traits::{Context, HttpContext, RootContext};
 use proxy_wasm::types::{Bytes, ContextType};
 
 use crate::config::{AppConfigResponse, Config, EnvConfig};
-use crate::http_callback::{Handler, HttpCallbackManager, get_header};
+use crate::http_callback::{get_header, Handler, HttpCallbackManager};
 use crate::http_context::EventHttpContext;
-use crate::rules::{GovernanceRule, GovernanceRulesResponse, template, Variable};
+use crate::rules::{template, GovernanceRule, GovernanceRulesResponse, Variable};
 
 const EVENT_QUEUE: &str = "moesif_event_queue";
 
 #[derive(Default)]
 pub struct EventRootContext {
     config: Arc<Config>,
+    is_start: bool,
     event_byte_buffer: Arc<Mutex<Vec<Bytes>>>,
     http_manager: HttpCallbackManager,
 }
@@ -47,6 +48,7 @@ impl Context for EventRootContext {
 impl RootContext for EventRootContext {
     fn on_vm_start(&mut self, _: usize) -> bool {
         self.set_tick_period(Duration::from_millis(1));
+        self.is_start = true;
         let config = self.get_vm_configuration();
         log::info!("VM configuration: {:?}", config);
         true
@@ -81,62 +83,19 @@ impl RootContext for EventRootContext {
     }
 
     fn on_tick(&mut self) {
+        log::debug!("on_tick: {}", Utc::now().to_rfc3339());
         // We set on_tick to 1ms at start up to work around a bug or limitation in Envoy
         // where dispatch http call does not work in on_configure or on_vm_start.
         // We set it back to 2s after the first tick.
-        self.set_tick_period(Duration::from_secs(2));
-        log::debug!("on_tick: {}", Utc::now().to_rfc3339());
+        if self.is_start {
+            self.is_start = false;
+            self.set_tick_period(Duration::from_secs(2));
+            self.request_config_api();
+            self.request_rules_api();
+        }
         self.poll_queue();
         // This will send all events in the buffer to enforce the batch_max_wait
         self.drain_and_send(1);
-        // TODO: move these calls to their respective modules now that this is finally working
-        self.dispatch_http_request(
-            "GET",
-            "/v1/config",
-            Bytes::new(),
-            Box::new(|headers, body| {
-                log::info!("Config Response headers: {:?}", headers);
-                // unmarshall the body into a create::config::AppConfigResponse struct
-                if let Some(body) = body {
-                    let mut app_config_response = serde_json::from_slice::<AppConfigResponse>(&body).unwrap();
-                    app_config_response.e_tag = get_header(&headers, "X-Moesif-Config-Etag");
-                    log::info!(
-                        "Config Response app_config_response: {:?}",
-                        app_config_response
-                    );
-                } else {
-                    log::warn!("Config Response body: None");
-                }
-            }),
-        );
-        self.dispatch_http_request(
-            "GET",
-            "/v1/rules",
-            Bytes::new(),
-            Box::new(|headers, body| {
-                log::info!("Rules Response headers: {:?}", headers);
-                let e_tag = get_header(&headers, "X-Moesif-Config-Etag");
-                if let Some(body) = body {
-                    let rules = serde_json::from_slice::<Vec<GovernanceRule>>(&body).unwrap();
-                    let rules_response = GovernanceRulesResponse { rules, e_tag };
-                    log::info!("Rules Response rules_response: {:?}", rules_response);
-                    for rule in rules_response.rules {
-                        if let (Some(body), Some(variables)) = (rule.response.body, rule.variables) {
-                            log::info!("Rule body: {:?}", body);
-                            log::info!("Rule variables: {:?}", variables);
-                            let variables: HashMap<String, String> = variables
-                                .into_iter()
-                                .map(|variable| (variable.name, variable.path))
-                                .collect();
-                            let templated_body = template(&body.0, &variables);
-                            log::info!("Rule templated_body: {:?}", templated_body);
-                        }
-                    }
-                } else {
-                    log::warn!("Rules Response body: None");
-                }
-            }),
-        );
     }
 
     fn on_queue_ready(&mut self, _queue_id: u32) {
@@ -219,6 +178,61 @@ impl EventRootContext {
         event_json_array.push(b']');
 
         event_json_array
+    }
+
+    fn request_config_api(&self) {
+        self.dispatch_http_request(
+            "GET",
+            "/v1/config",
+            Bytes::new(),
+            Box::new(|headers, body| {
+                log::info!("Config Response headers: {:?}", headers);
+                if let Some(body) = body {
+                    let mut app_config_response =
+                        serde_json::from_slice::<AppConfigResponse>(&body).unwrap();
+                    app_config_response.e_tag = get_header(&headers, "X-Moesif-Config-Etag");
+                    log::info!(
+                        "Config Response app_config_response: {:?}",
+                        app_config_response
+                    );
+                } else {
+                    log::warn!("Config Response body: None");
+                }
+            }),
+        );
+    }
+
+    fn request_rules_api(&self) {
+        self.dispatch_http_request(
+            "GET",
+            "/v1/rules",
+            Bytes::new(),
+            Box::new(|headers, body| {
+                log::info!("Rules Response headers: {:?}", headers);
+                let e_tag = get_header(&headers, "X-Moesif-Config-Etag");
+                if let Some(body) = body {
+                    // what to do in these callbacks on error?
+                    let rules = serde_json::from_slice::<Vec<GovernanceRule>>(&body).unwrap();
+                    let rules_response = GovernanceRulesResponse { rules, e_tag };
+                    log::info!("Rules Response rules_response: {:?}", rules_response);
+                    for rule in rules_response.rules {
+                        if let (Some(body), Some(variables)) = (rule.response.body, rule.variables)
+                        {
+                            log::info!("Rule body: {:?}", body);
+                            log::info!("Rule variables: {:?}", variables);
+                            let variables: HashMap<String, String> = variables
+                                .into_iter()
+                                .map(|variable| (variable.name, variable.path))
+                                .collect();
+                            let templated_body = template(&body.0, &variables);
+                            log::info!("Rule templated_body: {:?}", templated_body);
+                        }
+                    }
+                } else {
+                    log::warn!("Rules Response body: None");
+                }
+            }),
+        );
     }
 
     fn dispatch_http_request(
