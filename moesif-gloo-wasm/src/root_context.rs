@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
@@ -5,8 +6,10 @@ use chrono::Utc;
 use proxy_wasm::traits::{Context, HttpContext, RootContext};
 use proxy_wasm::types::{Bytes, ContextType};
 
-use crate::config::{Config, EnvConfig};
+use crate::config::{AppConfigResponse, Config, EnvConfig};
+use crate::http_callback::{Handler, HttpCallbackManager, get_header};
 use crate::http_context::EventHttpContext;
+use crate::rules::{GovernanceRule, GovernanceRulesResponse, template, Variable};
 
 const EVENT_QUEUE: &str = "moesif_event_queue";
 
@@ -14,6 +17,7 @@ const EVENT_QUEUE: &str = "moesif_event_queue";
 pub struct EventRootContext {
     config: Arc<Config>,
     event_byte_buffer: Arc<Mutex<Vec<Bytes>>>,
+    http_manager: HttpCallbackManager,
 }
 
 impl Context for EventRootContext {
@@ -35,30 +39,14 @@ impl Context for EventRootContext {
         // To access the headers, body, and trailers
         let headers = self.get_http_call_response_headers();
         let body = self.get_http_call_response_body(0, body_size);
-        let trailers = self.get_http_call_response_trailers();
 
-        // Log headers
-        for (name, value) in &headers {
-            log::info!("Header: {} - {}", name, value);
-        }
-
-        // Log body
-        if let Some(body_bytes) = body {
-            let body_str = std::str::from_utf8(&body_bytes).unwrap_or_default();
-            log::info!("Body: {}", body_str);
-        }
-
-        // Log trailers
-        for (name, value) in &trailers {
-            log::info!("Trailer: {} - {}", name, value);
-        }
+        self.http_manager.handle_response(token_id, headers, body);
     }
 }
 
 impl RootContext for EventRootContext {
     fn on_vm_start(&mut self, _: usize) -> bool {
-        let tick_period = Duration::from_secs(20);
-        self.set_tick_period(tick_period);
+        self.set_tick_period(Duration::from_millis(1));
         let config = self.get_vm_configuration();
         log::info!("VM configuration: {:?}", config);
         true
@@ -93,10 +81,62 @@ impl RootContext for EventRootContext {
     }
 
     fn on_tick(&mut self) {
+        // We set on_tick to 1ms at start up to work around a bug or limitation in Envoy
+        // where dispatch http call does not work in on_configure or on_vm_start.
+        // We set it back to 2s after the first tick.
+        self.set_tick_period(Duration::from_secs(2));
         log::debug!("on_tick: {}", Utc::now().to_rfc3339());
         self.poll_queue();
         // This will send all events in the buffer to enforce the batch_max_wait
         self.drain_and_send(1);
+        // TODO: move these calls to their respective modules now that this is finally working
+        self.dispatch_http_request(
+            "GET",
+            "/v1/config",
+            Bytes::new(),
+            Box::new(|headers, body| {
+                log::info!("Config Response headers: {:?}", headers);
+                // unmarshall the body into a create::config::AppConfigResponse struct
+                if let Some(body) = body {
+                    let mut app_config_response = serde_json::from_slice::<AppConfigResponse>(&body).unwrap();
+                    app_config_response.e_tag = get_header(&headers, "X-Moesif-Config-Etag");
+                    log::info!(
+                        "Config Response app_config_response: {:?}",
+                        app_config_response
+                    );
+                } else {
+                    log::warn!("Config Response body: None");
+                }
+            }),
+        );
+        self.dispatch_http_request(
+            "GET",
+            "/v1/rules",
+            Bytes::new(),
+            Box::new(|headers, body| {
+                log::info!("Rules Response headers: {:?}", headers);
+                let e_tag = get_header(&headers, "X-Moesif-Config-Etag");
+                if let Some(body) = body {
+                    let rules = serde_json::from_slice::<Vec<GovernanceRule>>(&body).unwrap();
+                    let rules_response = GovernanceRulesResponse { rules, e_tag };
+                    log::info!("Rules Response rules_response: {:?}", rules_response);
+                    for rule in rules_response.rules {
+                        if let (Some(body), Some(variables)) = (rule.response.body, rule.variables) {
+                            log::info!("Rule body: {:?}", body);
+                            log::info!("Rule variables: {:?}", variables);
+                            let variables: HashMap<String, String> = variables
+                                .into_iter()
+                                .map(|variable| (variable.name, variable.path))
+                                .collect();
+                            let templated_body = template(&body.0, &variables);
+                            log::info!("Rule templated_body: {:?}", templated_body);
+                        }
+                    }
+                } else {
+                    log::warn!("Rules Response body: None");
+                }
+            }),
+        );
     }
 
     fn on_queue_ready(&mut self, _queue_id: u32) {
@@ -148,7 +188,15 @@ impl EventRootContext {
         while buffer.len() >= drain_at_least {
             let end = std::cmp::min(buffer.len(), self.config.env.batch_max_size);
             let body = self.write_events_json(buffer.drain(..end).collect());
-            self.dispatch_http_request("POST", "/v1/events/batch", body);
+            self.dispatch_http_request(
+                "POST",
+                "/v1/events/batch",
+                body,
+                Box::new(|headers, _| {
+                    let e_tag = get_header(&headers, "X-Moesif-Config-Etag");
+                    log::info!("Event Response e_tag: {:?}", e_tag);
+                }),
+            );
         }
     }
 
@@ -173,7 +221,13 @@ impl EventRootContext {
         event_json_array
     }
 
-    fn dispatch_http_request(&self, method: &str, path: &str,  body: Bytes) -> u32 {
+    fn dispatch_http_request(
+        &self,
+        method: &str,
+        path: &str,
+        body: Bytes,
+        callback: Handler,
+    ) -> u32 {
         let content_length = body.len().to_string();
         let application_id = self.config.env.moesif_application_id.clone();
         let headers = vec![
@@ -188,11 +242,29 @@ impl EventRootContext {
         ];
         let trailers = vec![];
         let timeout = Duration::from_secs(5);
-
+        // encode body as a string to print
+        let bodystr = std::str::from_utf8(&body).unwrap_or_default();
+        log::info!(
+            "Dispatching {} request to {} with body {}",
+            method,
+            path,
+            bodystr
+        );
+        // log headers
+        for (name, value) in &headers {
+            log::info!("Header: {}: {}", name, value);
+        }
         // Dispatch the HTTP request. The result is a token that uniquely identifies this call
-        match self.dispatch_http_call(&self.config.env.upstream, headers, Some(&body), trailers, timeout) {
+        match self.dispatch_http_call(
+            &self.config.env.upstream,
+            headers,
+            Some(&body),
+            trailers,
+            timeout,
+        ) {
             Ok(token_id) => {
                 log::info!("Dispatched request to {} and got token {}", path, token_id);
+                self.http_manager.register_handler(token_id, callback);
                 token_id
             }
             Err(e) => {
