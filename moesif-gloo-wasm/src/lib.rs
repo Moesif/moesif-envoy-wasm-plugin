@@ -2,6 +2,8 @@ mod config;
 mod event;
 mod http_context;
 mod root_context;
+mod http_callback;
+mod rules;
 
 use proxy_wasm::{traits::RootContext, types::LogLevel};
 use root_context::EventRootContext;
