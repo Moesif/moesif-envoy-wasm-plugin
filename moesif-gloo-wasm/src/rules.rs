@@ -1,6 +1,9 @@
-use serde::{Deserialize, Serialize};
-use serde::de::{self, Deserializer, Visitor, MapAccess};
 use std::{collections::HashMap, fmt};
+
+use regex::Regex;
+use serde::{Deserialize, Serialize};
+use serde::de::{self, Deserializer, MapAccess, Visitor};
+use crate::event::RequestInfo;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GovernanceRulesResponse {
@@ -19,6 +22,8 @@ pub struct GovernanceRule {
     pub regex_config: Vec<RegexConditionsAnd>,
     pub response: ResponseOverrides,
     pub variables: Option<Vec<Variable>>,
+    pub applied_to: String,
+    pub applied_to_unidentified: bool,
     pub org_id: String,
     pub app_id: String,
     pub created_at: String,
@@ -88,3 +93,133 @@ pub fn template(t: &str, vars: &HashMap<String, String>) -> String {
     }
     s
 }
+
+pub struct RuleTemplate {
+    rule: GovernanceRule,
+    values: HashMap<String, String>,
+}
+
+impl RuleTemplate {
+    fn template_override(&self) -> TemplatedOverrideValues {
+        let mut headers = HashMap::new();
+        for (k, v) in &self.rule.response.headers {
+            headers.insert(k.clone(), template(v, &self.values));
+        }
+        let body = self.rule.response.body.as_ref().map(|b| template(&b.0, &self.values));
+        TemplatedOverrideValues {
+            block: self.rule.block,
+            headers,
+            status: self.rule.response.status,
+            body: body.map(|b| b.into_bytes()),
+        }
+    }
+}
+
+pub struct TemplatedOverrideValues {
+    block: bool,
+    headers: HashMap<String, String>,
+    status: i32,
+    body: Option<Vec<u8>>,
+}
+
+pub struct ResponseOverride<T: HttpResponseAction> {
+    override_values: TemplatedOverrideValues,
+    response: T,
+    wrote_headers: bool,
+    wrote_body: bool,
+}
+
+impl<T: HttpResponseAction> ResponseOverride<T> {
+    fn new(response: T, templates: Vec<RuleTemplate>) -> Self {
+        let mut override_values = TemplatedOverrideValues {
+            block: false,
+            headers: HashMap::new(),
+            status: 0,
+            body: None,
+        };
+        for template in templates {
+            let t = template.template_override();
+            override_values.block |= t.block;
+            override_values.status = t.status;
+            for (k, v) in t.headers {
+                override_values.headers.insert(k, v);
+            }
+            if let Some(body) = t.body {
+                override_values.body = Some(body);
+            }
+        }
+        Self {
+            override_values,
+            response,
+            wrote_headers: false,
+            wrote_body: false,
+        }
+    }
+
+    fn write_header(&mut self, status: i32) {
+        self.wrote_headers = true;
+        let headers = self.response.get_http_response_headers_mut();
+        for (k, v) in &self.override_values.headers {
+            headers.insert(k.clone(), v.clone());
+        }
+        if self.override_values.block {
+            self.response.set_http_response_status(self.override_values.status);
+        } else {
+            self.response.set_http_response_status(status);
+        }
+    }
+
+    fn write(&mut self, body: &[u8]) -> usize {
+        self.wrote_body = true;
+        if !self.wrote_headers {
+            self.write_header(200);
+        }
+        if self.override_values.block {
+            if let Some(ref override_body) = self.override_values.body {
+                self.response.append_http_response_body(override_body);
+                return override_body.len();
+            }
+        }
+        self.response.append_http_response_body(body);
+        body.len()
+    }
+
+    fn finish(&mut self) {
+        if !self.wrote_body {
+            self.write(&[]);
+        }
+    }
+}
+
+fn check_regex(rule: &GovernanceRule, req: &RequestInfo) -> bool {
+    if rule.regex_config.is_empty() {
+        return true;
+    }
+    for regex_and in &rule.regex_config {
+        let and_value = regex_and.conditions.iter().all(|c| {
+            let s = request_path_lookup(&req, &c.path);
+            let re = Regex::new(&c.value);
+            match re {
+                Ok(re) => re.is_match(&s),
+                Err(_) => {
+                    eprintln!("Governance rule regex error: org-app={}-{} rule.id={} rule.name={} path={} regex={}", rule.org_id, rule.app_id, rule.id, rule.name, c.path, c.value);
+                    false
+                }
+            }
+        });
+        if and_value {
+            return true;
+        }
+    }
+    false
+}
+
+fn request_path_lookup(req: &RequestInfo, path: &str) -> String {
+    match path {
+        "request.uri" => req.uri.clone(),
+        "request.verb" => req.verb.clone(),
+        // Add more path cases based on your needs
+        _ => "".into(),
+    }
+}
+

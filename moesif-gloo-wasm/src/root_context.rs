@@ -2,19 +2,20 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use proxy_wasm::traits::{Context, HttpContext, RootContext};
 use proxy_wasm::types::{Bytes, ContextType};
 
 use crate::config::{AppConfigResponse, Config, EnvConfig};
 use crate::http_callback::{get_header, Handler, HttpCallbackManager};
 use crate::http_context::EventHttpContext;
-use crate::rules::{template, GovernanceRule, GovernanceRulesResponse, Variable};
+use crate::rules::{GovernanceRule, GovernanceRulesResponse, template, Variable};
 
 const EVENT_QUEUE: &str = "moesif_event_queue";
 
 #[derive(Default)]
 pub struct EventRootContext {
+    context_id: String,
     config: Arc<Config>,
     is_start: bool,
     event_byte_buffer: Arc<Mutex<Vec<Bytes>>>,
@@ -47,6 +48,7 @@ impl Context for EventRootContext {
 
 impl RootContext for EventRootContext {
     fn on_vm_start(&mut self, _: usize) -> bool {
+        self.context_id = uuid::Uuid::new_v4().to_string();
         self.set_tick_period(Duration::from_millis(1));
         self.is_start = true;
         let config = self.get_vm_configuration();
@@ -83,13 +85,13 @@ impl RootContext for EventRootContext {
     }
 
     fn on_tick(&mut self) {
-        log::debug!("on_tick: {}", Utc::now().to_rfc3339());
+        log::debug!("on_tick context_id {} at {}", self.context_id, Utc::now().to_rfc3339());
         // We set on_tick to 1ms at start up to work around a bug or limitation in Envoy
         // where dispatch http call does not work in on_configure or on_vm_start.
         // We set it back to 2s after the first tick.
         if self.is_start {
             self.is_start = false;
-            self.set_tick_period(Duration::from_secs(2));
+            let foo = self.set_tick_period(Duration::from_secs(2));
             self.request_config_api();
             self.request_rules_api();
         }
@@ -152,8 +154,9 @@ impl EventRootContext {
                 "/v1/events/batch",
                 body,
                 Box::new(|headers, _| {
-                    let e_tag = get_header(&headers, "X-Moesif-Config-Etag");
-                    log::info!("Event Response e_tag: {:?}", e_tag);
+                    let config_etag = get_header(&headers, "X-Moesif-Config-Etag");
+                    let rules_etag = get_header(&headers, "X-Moesif-Rules-Etag");
+                    log::info!("Event Response eTags: config={:?} rules={:?}", config_etag, rules_etag);
                 }),
             );
         }

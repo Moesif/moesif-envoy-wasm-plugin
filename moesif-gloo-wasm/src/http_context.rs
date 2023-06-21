@@ -108,7 +108,6 @@ impl EventHttpContext {
         }
     }
 
-
     fn header_list_to_map(headers: Vec<(String, String)>) -> HashMap<String, String> {
         headers.into_iter().collect::<HashMap<_, _>>()
     }
