@@ -38,10 +38,11 @@ services:
     - --log-level
     - debug
 
-  echologger:
-    image: moesif.azurecr.io/echologger:test
+  echo:
+    image: hashicorp/http-echo
+    command: ["-text=Hello from echo service"]
     ports:
-      - 8080:8080
+      - "5678:5678"
     networks:
       - envoymesh
 

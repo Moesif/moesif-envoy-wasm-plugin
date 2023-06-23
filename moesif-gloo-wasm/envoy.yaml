@@ -64,8 +64,8 @@ static_resources:
         - endpoint:
             address:
               socket_address:
-                address: echologger
-                port_value: 8080
+                address: echo
+                port_value: 5678
   - name: moesif_api
     type: logical_dns
     dns_refresh_rate: 500s
