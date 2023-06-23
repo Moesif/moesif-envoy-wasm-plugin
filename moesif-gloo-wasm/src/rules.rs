@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde::de::{self, Deserializer, MapAccess, Visitor};
-use crate::event::RequestInfo;
+use crate::event::{RequestInfo, ResponseInfo};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GovernanceRulesResponse {
@@ -122,15 +122,15 @@ pub struct TemplatedOverrideValues {
     body: Option<Vec<u8>>,
 }
 
-pub struct ResponseOverride<T: HttpResponseAction> {
+pub struct ResponseOverride {
     override_values: TemplatedOverrideValues,
-    response: T,
+    response: ResponseInfo,
     wrote_headers: bool,
     wrote_body: bool,
 }
 
-impl<T: HttpResponseAction> ResponseOverride<T> {
-    fn new(response: T, templates: Vec<RuleTemplate>) -> Self {
+impl ResponseOverride {
+    fn new(response: ResponseInfo, templates: Vec<RuleTemplate>) -> Self {
         let mut override_values = TemplatedOverrideValues {
             block: false,
             headers: HashMap::new(),
@@ -153,40 +153,6 @@ impl<T: HttpResponseAction> ResponseOverride<T> {
             response,
             wrote_headers: false,
             wrote_body: false,
-        }
-    }
-
-    fn write_header(&mut self, status: i32) {
-        self.wrote_headers = true;
-        let headers = self.response.get_http_response_headers_mut();
-        for (k, v) in &self.override_values.headers {
-            headers.insert(k.clone(), v.clone());
-        }
-        if self.override_values.block {
-            self.response.set_http_response_status(self.override_values.status);
-        } else {
-            self.response.set_http_response_status(status);
-        }
-    }
-
-    fn write(&mut self, body: &[u8]) -> usize {
-        self.wrote_body = true;
-        if !self.wrote_headers {
-            self.write_header(200);
-        }
-        if self.override_values.block {
-            if let Some(ref override_body) = self.override_values.body {
-                self.response.append_http_response_body(override_body);
-                return override_body.len();
-            }
-        }
-        self.response.append_http_response_body(body);
-        body.len()
-    }
-
-    fn finish(&mut self) {
-        if !self.wrote_body {
-            self.write(&[]);
         }
     }
 }
