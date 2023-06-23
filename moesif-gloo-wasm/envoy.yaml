@@ -39,15 +39,15 @@ static_resources:
                   "@type": "type.googleapis.com/google.protobuf.StringValue"
                   value: |
                     {
-                      "base_uri": "api.moesif.net",
-                      "moesif_application_id":"eyJhcHAiOiIxMzI6Mzc3IiwidmVyIjoiMi4wIiwib3JnIjoiODg6MjEwIiwiaWF0IjoxNjg1NTc3NjAwfQ.ovxETFvEFypjQYLQvhn5CZms0zSp4gyya1GQ_7h32Xc", 
-                      "user_id_header":"X-Moesif-User",
-                      "company_id_header":"X-Moesif-Company"
+                      "moesif_application_id":"<YOUR APPLICATION ID HERE>", 
+                      "user_id_header":"X-User-Example-Header",
+                      "company_id_header":"X-Company-Example-Header"
                     }
                 vm_config:
                   vm_id: "moesif_api_vm"
                   code:
                     local:
+                      # path to the compiled wasm file in your Envoy container
                       filename: "/etc/envoy/proxy-wasm-plugins/moesif_api_envoy_filter.wasm"
           - name: envoy.filters.http.router
             typed_config:
