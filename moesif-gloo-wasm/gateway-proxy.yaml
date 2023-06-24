@@ -27,7 +27,7 @@ spec:
                       "user_id_header":"X-Moesif-User",
                       "company_id_header":"X-Moesif-Company-Id"
                     }
-          image: webassemblyhub.io/brian_moesif/moesif_api_envoy_filter:v0.1.0
+          image: webassemblyhub.io/brian_moesif/moesif_api_envoy_filter:v0.2.0
           name: moesif_api
           rootId: moesif_api_root_id
   proxyNames:
