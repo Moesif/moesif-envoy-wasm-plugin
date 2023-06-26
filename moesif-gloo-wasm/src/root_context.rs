@@ -262,7 +262,8 @@ impl EventRootContext {
         // encode body as a string to print
         let bodystr = std::str::from_utf8(&body).unwrap_or_default();
         log::info!(
-            "Dispatching {} request to {} with body {}",
+            "Dispatching {} upstream {} request to {} with body {}",
+            &self.config.env.upstream,
             method,
             path,
             bodystr
