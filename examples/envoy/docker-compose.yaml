@@ -2,13 +2,13 @@ version: '3.8'
 services:
   rust-builder:
     build: 
-      context: .
+      context: ../../moesif-wasm/
       dockerfile: Cargo-build.dockerfile
       args:
         USER_ID: ${UID:-1000}
         GROUP_ID: ${GID:-1000}
     volumes:
-      - ./:/build
+      - ../../moesif-wasm:/build
     command:
     - cargo
     - build
@@ -25,7 +25,7 @@ services:
       - "10000:10000"
       - "9901:9901"
     volumes:
-      - ./target/wasm32-wasi/debug:/etc/envoy/proxy-wasm-plugins
+      - ../../moesif-wasm/target/wasm32-wasi/release:/etc/envoy/proxy-wasm-plugins
       - ./envoy.yaml:/etc/envoy/envoy.yaml
     networks:
       - envoymesh
