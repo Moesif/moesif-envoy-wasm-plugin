@@ -111,8 +111,7 @@ configuration:
       "company_id_header":"X-Company-Example-Header",
       "batch_max_size": 20,
       "batch_max_wait": 3,
-      "upstream": "custom_moesif_api",
-      "base_uri": "custom.api.moesif.net"
+      "upstream": "example_custom_envoy_cluster_naming_scheme_moesif"
     }
 ```
 
