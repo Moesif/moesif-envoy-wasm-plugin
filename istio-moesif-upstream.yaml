@@ -2,7 +2,7 @@
 apiVersion: networking.istio.io/v1alpha3
 kind: ServiceEntry
 metadata:
-  name: moesif-api
+  name: moesif
 spec:
   hosts:
   - api.moesif.net
@@ -10,6 +10,9 @@ spec:
   - number: 443
     name: https
     protocol: HTTPS
+  - number: 80
+    name: http
+    protocol: HTTP
   resolution: DNS
   location: MESH_EXTERNAL
 ---
@@ -17,9 +20,24 @@ spec:
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
-  name: moesif-api
+  name: moesif
 spec:
   host: api.moesif.net
   trafficPolicy:
     tls:
-      mode: DISABLE
+      mode: DISABLE  # This disables TLS for all ports
+  subsets:
+    - name: http
+      trafficPolicy:
+        portLevelSettings:
+          - port:
+              number: 80
+            tls:
+              mode: DISABLE
+    - name: https
+      trafficPolicy:
+        portLevelSettings:
+          - port:
+              number: 443
+            tls:
+              mode: SIMPLE  # This allows TLS for port 443
