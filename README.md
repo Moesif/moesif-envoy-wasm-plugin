@@ -5,7 +5,7 @@ The Moesif Envoy plugin captures API traffic from [Envoy Service Proxy](https://
 - Envoy is an open-source Service Proxy.
 - Moesif is an API analytics and monitoring service.
 
-[Source Code on GitHub](https://github.com/Moesif/moesif-gloo-filter)
+[Source Code on GitHub](https://github.com/Moesif/moesif-envoy-wasm-plugin)
 
 ## Installation Instructions
 
@@ -13,7 +13,7 @@ The Moesif Envoy plugin captures API traffic from [Envoy Service Proxy](https://
 
 The `moesif_envoy_wasm_plugin.wasm` file can be downloaded directly from the GitHub releases page. To do so:
 
-1. Navigate to the [GitHub release page](https://github.com/Moesif/moesif-gloo-filter/releases).
+1. Navigate to the [GitHub release page](https://github.com/Moesif/moesif-envoy-wasm-plugin/releases).
 2. Find the latest release and download the `moesif_envoy_wasm_plugin.wasm` file from the assets section.
 
 ### 2. Load the Plugin into your Envoy Proxy
@@ -129,7 +129,7 @@ If you're using Docker, you can use the provided `docker-compose.yaml` to easily
 2. Clone the project repository.
 
     ```bash
-    git clone https://github.com/Moesif/moesif-gloo-filter.git
+    git clone https://github.com/Moesif/moesif-envoy-wasm-plugin.git
     cd moesif-envoy-plugin
     ```
 
@@ -165,7 +165,5 @@ For a comprehensive list of configuration options, refer to the 'Configuration o
 Configure Envoy to use the Moesif Envoy plugin. Make a few API calls that pass through the Envoy proxy. These calls should now be logged to your Moesif account.
 
 ## Other Integrations
-
-To view more documentation on integration options, please visit the Integration Options Documentation.
 
 To view more documentation on integration options, please visit __[the Integration Options Documentation](https://www.moesif.com/docs/getting-started/integration-options/).__
