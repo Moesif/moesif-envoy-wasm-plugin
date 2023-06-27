@@ -48,7 +48,7 @@ static_resources:
                   code:
                     local:
                       # path to the compiled wasm file in your Envoy container
-                      filename: "/etc/envoy/proxy-wasm-plugins/moesif_api_envoy_filter.wasm"
+                      filename: "/etc/envoy/proxy-wasm-plugins/moesif_wasm_plugin.wasm"
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router

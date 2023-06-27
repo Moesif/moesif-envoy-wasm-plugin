@@ -11,14 +11,14 @@ The Moesif Envoy plugin captures API traffic from [Envoy Service Proxy](https://
 
 ### 1. Download the Plugin
 
-The `moesif_api_envoy_filter.wasm` file can be downloaded directly from the GitHub releases page. To do so:
+The `moesif_wasm_plugin.wasm` file can be downloaded directly from the GitHub releases page. To do so:
 
 1. Navigate to the [GitHub release page](https://github.com/Moesif/moesif-gloo-filter/releases).
-2. Find the latest release and download the `moesif_api_envoy_filter.wasm` file from the assets section.
+2. Find the latest release and download the `moesif_wasm_plugin.wasm` file from the assets section.
 
 ### 2. Load the Plugin into your Envoy Proxy
 
-1. Transfer the downloaded `moesif_api_envoy_filter.wasm` file to the Envoy proxy server.
+1. Transfer the downloaded `moesif_wasm_plugin.wasm` file to the Envoy proxy server.
 2. Place the wasm file in an appropriate directory (for example, `/etc/envoy/proxy-wasm-plugins/`).
 3. Ensure the Envoy proxy has read access to the wasm file.
 
@@ -30,7 +30,7 @@ Remember to replace `<YOUR APPLICATION ID HERE>` with your actual Moesif Applica
 
 The upstream config defaults to 'moesif_api', but if you use something else in the clusters.name field, you will need to explicitly include the base_uri to match.
 
-Also, remember to update the filename path in the `vm_config` section to match the location where you placed the `moesif_api_envoy_filter.wasm` file.
+Also, remember to update the filename path in the `vm_config` section to match the location where you placed the `moesif_wasm_plugin.wasm` file.
 
 ```yaml
 http_filters:
@@ -54,7 +54,7 @@ http_filters:
         vm_id: "moesif_api_vm"
         code:
           local:
-            filename: "/etc/envoy/proxy-wasm-plugins/moesif_api_envoy_filter.wasm"
+            filename: "/etc/envoy/proxy-wasm-plugins/moesif_wasm_plugin.wasm"
 # ... other filters ending with router
 - name: envoy.filters.http.router
   typed_config:

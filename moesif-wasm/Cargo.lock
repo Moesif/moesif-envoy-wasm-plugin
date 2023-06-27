@@ -162,7 +162,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 
 [[package]]
-name = "moesif_api_envoy_filter"
+name = "moesif_wasm_plugin"
 version = "0.1.0"
 dependencies = [
  "base64",
