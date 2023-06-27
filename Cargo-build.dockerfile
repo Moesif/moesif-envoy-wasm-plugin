@@ -1,6 +1,10 @@
 # Build environment setup
+# examples/envoy/docker-compose.yaml shows how to mount the build directory
+# as a volume so the build artifacts will be cached locally
 FROM rust:1.70.0 as builder
 
+# The user ID and group ID of the host user
+# so the container can be run as the host user to avoid permission issues
 ARG USER_ID
 ARG GROUP_ID
 
@@ -13,8 +17,3 @@ WORKDIR /build
 
 # Install wasm32-wasi target to build for WASM
 RUN rustup target add wasm32-wasi
-
-# The /build directory will be mounted from the project repo by docker-compose
-# along with the run command and build artifacts will be cached locally as well
-# examples/envoy/docker-compose.yaml has an example of how to mount the build directory
-# as a volume and cargo build the project

@@ -1,0 +1,45 @@
+# This file is used to configure Istio to allow traffic to Moesif API
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: moesif
+  namespace: istio-ingress
+spec:
+  hosts:
+  - api.moesif.net
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  - number: 80
+    name: http
+    protocol: HTTP
+  resolution: DNS
+  location: MESH_EXTERNAL
+---
+# Istio uses mTLS by default, but Moesif API does not support mTLS
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: moesif
+  namespace: istio-ingress
+spec:
+  host: api.moesif.net
+  trafficPolicy:
+    tls:
+      mode: DISABLE  # This disables TLS for all ports
+  subsets:
+    - name: http
+      trafficPolicy:
+        portLevelSettings:
+          - port:
+              number: 80
+            tls:
+              mode: DISABLE
+    - name: https
+      trafficPolicy:
+        portLevelSettings:
+          - port:
+              number: 443
+            tls:
+              mode: SIMPLE  # This allows TLS for port 443
