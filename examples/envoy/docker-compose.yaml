@@ -1,0 +1,51 @@
+version: '3.8'
+services:
+  rust-builder:
+    build: 
+      context: ../../moesif-wasm/
+      dockerfile: Cargo-build.dockerfile
+      args:
+        USER_ID: ${UID:-1000}
+        GROUP_ID: ${GID:-1000}
+    volumes:
+      - ../../moesif-wasm:/build
+    command:
+    - cargo
+    - build
+    - --target=wasm32-wasi
+    - --release
+
+  envoy:
+    image: envoyproxy/envoy:v1.25.6
+    hostname: envoy
+    depends_on:
+      rust-builder:
+        condition: service_completed_successfully
+    ports:
+      - "10000:10000"
+      - "9901:9901"
+    volumes:
+      - ../../moesif-wasm/target/wasm32-wasi/release:/etc/envoy/proxy-wasm-plugins
+      - ./envoy.yaml:/etc/envoy/envoy.yaml
+    networks:
+      - envoymesh
+    cpus: 1
+    command:
+    - envoy
+    - -c
+    - /etc/envoy/envoy.yaml
+    - --concurrency
+    - "1"
+    - --log-level
+    - debug
+
+  echo:
+    image: hashicorp/http-echo
+    command: ["-text=Hello from echo service"]
+    ports:
+      - "5678:5678"
+    networks:
+      - envoymesh
+
+networks:
+  envoymesh:
