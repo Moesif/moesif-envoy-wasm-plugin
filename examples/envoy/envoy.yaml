@@ -67,7 +67,7 @@ static_resources:
                 address: echo
                 port_value: 5678
   - name: moesif_api
-    type: logical_dns
+    type: strict_dns
     dns_refresh_rate: 500s
     load_assignment:
       cluster_name: moesif_api
