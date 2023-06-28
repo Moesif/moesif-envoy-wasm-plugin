@@ -75,7 +75,7 @@ clusters:
   transport_socket:
     name: envoy.transport_sockets.tls
     typed_config:
-      "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext"
+      "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
 ```
 
 ### 4. Restart Envoy
