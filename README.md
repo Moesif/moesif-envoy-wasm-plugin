@@ -7,7 +7,7 @@ The Moesif Envoy WebAssembly plugin captures API traffic from [Envoy Service Pro
 
 [Source Code on GitHub](https://github.com/Moesif/moesif-envoy-wasm-plugin)
 
-> Moesif has both an Envoy plugin [built in WASM](https://www.moesif.com/docs/server-integration/envoy-wasm-plugin/) and one [built in Lua](https://www.moesif.com/docs/server-integration/envoy-proxy/). For most projects including Gloo and Istio, Moesif recommends the WASM plugin for full compatibility.
+> Moesif has both an Envoy plugin [built in WASM](https://www.moesif.com/docs/server-integration/envoy-wasm-plugin/) and one [built in Lua](https://www.moesif.com/docs/server-integration/envoy-lua-plugin/). For most projects including Gloo and Istio, Moesif recommends the WASM plugin for full compatibility.
 
 ## How to Install
 
