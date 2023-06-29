@@ -1,11 +1,13 @@
 # Moesif Envoy WASM Plugin
 
-The Moesif Envoy WebAssembly plugin captures API traffic from [Envoy Service Proxy](https://www.envoyproxy.io/) and logs it to [Moesif API Analytics](https://www.moesif.com). This plugin leverages an asynchronous design and doesn’t add any latency to your API calls.
+The Moesif Envoy WebAssembly plugin captures API traffic from [Envoy Service Proxy](https://www.envoyproxy.io/) and logs it to [Moesif API Analytics and Monetization](https://www.moesif.com) platform. Supports projects built on Envoy such as Solo.io Gloo Gateway, Istio, and others. This plugin leverages an asynchronous design and doesn’t add any latency to your API calls.
 
-- Envoy is an L7 proxy and communication bus.
+- Envoy is a L7 proxy and communication bus.
 - Moesif is an API analytics and monetization platform.
 
 [Source Code on GitHub](https://github.com/Moesif/moesif-envoy-wasm-plugin)
+
+> Moesif has both an Envoy plugin [built in WASM](https://www.moesif.com/docs/server-integration/envoy-wasm-plugin/) and one [built in Lua](https://www.moesif.com/docs/server-integration/envoy-proxy/). For most projects including Gloo and Istio, Moesif recommends the WASM plugin for full compatibility.
 
 ## How to Install
 
@@ -107,7 +109,7 @@ These configuration options are specified as JSON in the `configuration` section
 | `moesif_application_id`| String  | None                    | **Required.** Your Moesif Application Id. Can be found within the Moesif Portal.                                                        |
 | `user_id_header`       | String  | None                    | Optional. The header key for User Id. If provided, the corresponding header value is used as the User Id in Moesif event models.        |
 | `company_id_header`    | String  | None                    | Optional. The header key for Company Id. If provided, the corresponding header value is used as the Company Id in Moesif event models.  |
-| `batch_max_size`       | Integer | 10                      | Optional. The maximum batch size of events to be sent to Moesif.                                                                       |
+| `batch_max_size`       | Integer | 100                     | Optional. The maximum batch size of events to be sent to Moesif.                                                                       |
 | `batch_max_wait`       | Integer | 2                       | Optional. The maximum wait time in seconds before a batch is sent to Moesif, regardless of the batch size.                              |
 | `upstream`             | String  | "moesif_api"            | Optional. The upstream cluster in Envoy that points to Moesif's API.                                                                            |
 
