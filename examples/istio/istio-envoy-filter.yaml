@@ -16,4 +16,4 @@ spec:
     moesif_application_id: eyJhcHAiOiIxMzI6Mzc3IiwidmVyIjoiMi4wIiwib3JnIjoiODg6MjEwIiwiaWF0IjoxNjg1NTc3NjAwfQ.ovxETFvEFypjQYLQvhn5CZms0zSp4gyya1GQ_7h32Xc
     user_id_header: X-User-Example-Header
     company_id_header: X-Company-Example-Header
-    upstream: moesif
+    upstream: outbound|443|https|api.moesif.net

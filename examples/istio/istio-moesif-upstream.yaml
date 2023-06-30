@@ -3,6 +3,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: ServiceEntry
 metadata:
   name: moesif
+  namespace: istio-ingress
 spec:
   hosts:
   - api.moesif.net
@@ -21,22 +22,44 @@ apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: moesif-virtual-service
+  namespace: istio-ingress
 spec:
   hosts:
-  - api.moesif.net
+  - "*"
+  gateways:
+  - https-echo-gateway
   http:
   - match:
     - uri:
         exact: /moesif
-    - route:
-      - destination:
-          host: api.moesif.net
-          port:
-            number: 443
-      - destination:
-          host: api.moesif.net
-          port:
-            number: 80
+    route:
+    - destination:
+        host: api.moesif.net
+        port:
+          number: 443
+        subset: https
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: moesif-http-virtual-service
+  namespace: istio-ingress
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - http-echo-gateway
+  http:
+  - match:
+    - uri:
+        exact: /moesif
+    route:
+    - destination:
+        host: api.moesif.net
+        port:
+          number: 80
+        subset: http
+
 ---
 # Istio uses mTLS by default, but Moesif API does not support mTLS
 apiVersion: networking.istio.io/v1alpha3
@@ -46,9 +69,6 @@ metadata:
   namespace: istio-ingress
 spec:
   host: api.moesif.net
-  trafficPolicy:
-    tls:
-      mode: DISABLE  # This disables TLS for all ports
   subsets:
     - name: http
       trafficPolicy:
