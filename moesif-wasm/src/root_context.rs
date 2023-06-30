@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use proxy_wasm::traits::{Context, HttpContext, RootContext};
 use proxy_wasm::types::{Bytes, ContextType};
 
 use crate::config::{AppConfigResponse, Config, EnvConfig};
 use crate::http_callback::{get_header, Handler, HttpCallbackManager};
 use crate::http_context::EventHttpContext;
-use crate::rules::{GovernanceRule, GovernanceRulesResponse, template, Variable};
+use crate::rules::{template, GovernanceRule, GovernanceRulesResponse};
 
 const EVENT_QUEUE: &str = "moesif_event_queue";
 
@@ -90,7 +90,11 @@ impl RootContext for EventRootContext {
     }
 
     fn on_tick(&mut self) {
-        log::trace!("on_tick context_id {} at {}", self.context_id, Utc::now().to_rfc3339());
+        log::trace!(
+            "on_tick context_id {} at {}",
+            self.context_id,
+            Utc::now().to_rfc3339()
+        );
         // We set on_tick to 1ms at start up to work around a bug or limitation in Envoy
         // where dispatch http call does not work in on_configure or on_vm_start.
         // We set it back to 2s after the first tick.
@@ -162,7 +166,11 @@ impl EventRootContext {
                 Box::new(|headers, _| {
                     let config_etag = get_header(&headers, "X-Moesif-Config-Etag");
                     let rules_etag = get_header(&headers, "X-Moesif-Rules-Etag");
-                    log::info!("Event Response eTags: config={:?} rules={:?}", config_etag, rules_etag);
+                    log::info!(
+                        "Event Response eTags: config={:?} rules={:?}",
+                        config_etag,
+                        rules_etag
+                    );
                 }),
             );
         }
@@ -217,7 +225,6 @@ impl EventRootContext {
             "/v1/rules",
             Bytes::new(),
             Box::new(|headers, body| {
-                log::info!("Rules Response headers: {:?}", headers);
                 let e_tag = get_header(&headers, "X-Moesif-Config-Etag");
                 if let Some(body) = body {
                     // what to do in these callbacks on error?
@@ -227,8 +234,6 @@ impl EventRootContext {
                     for rule in rules_response.rules {
                         if let (Some(body), Some(variables)) = (rule.response.body, rule.variables)
                         {
-                            log::info!("Rule body: {:?}", body);
-                            log::info!("Rule variables: {:?}", variables);
                             let variables: HashMap<String, String> = variables
                                 .into_iter()
                                 .map(|variable| (variable.name, variable.path))
@@ -273,10 +278,6 @@ impl EventRootContext {
             path,
             bodystr
         );
-        // log headers
-        for (name, value) in &headers {
-            log::info!("Header: {}: {}", name, value);
-        }
         // Dispatch the HTTP request. The result is a token that uniquely identifies this call
         match self.dispatch_http_call(
             &self.config.env.upstream,
@@ -292,7 +293,8 @@ impl EventRootContext {
             }
             Err(e) => {
                 log::error!(
-                    "Dispatch error {} upstream {} request to {} with body {}",
+                    "Dispatch error {:?} {} upstream {} request to {} with body {}",
+                    e,
                     &self.config.env.upstream,
                     method,
                     path,
