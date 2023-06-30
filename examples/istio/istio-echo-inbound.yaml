@@ -2,7 +2,7 @@ apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
   name: http-echo-gateway
-  namespace: istio-ingress
+  namespace: default
 spec:
   selector:
     istio: ingress
@@ -15,27 +15,6 @@ spec:
     - "*"
 ---
 apiVersion: networking.istio.io/v1beta1
-kind: Gateway
-metadata:
-  name: https-echo-gateway
-  namespace: istio-ingress
-spec:
-  selector:
-    istio: ingress
-  servers:
-  - port:
-      number: 443
-      name: https
-      protocol: HTTPS
-    hosts:
-    - "*"
-    tls:
-      mode: SIMPLE 
-      credentialName: istio-tls
-
----
-
-apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: echo-virtual-service
@@ -44,8 +23,7 @@ spec:
   hosts:
   - "*"
   gateways:
-  - istio-ingress/http-echo-gateway
-  - istio-ingress/https-echo-gateway
+  - http-echo-gateway
   http:
   - match:
     - uri:

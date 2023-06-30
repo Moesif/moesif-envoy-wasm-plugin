@@ -1,6 +1,7 @@
 #!/bin/bash -e
 
-if [ "$1" == "debug" ]; then
+TAG=${1:-latest}
+if [ "$2" == "debug" ]; then
     BUILD_VARIANT=debug
     BUILD_FLAGS=""
 else
@@ -8,15 +9,18 @@ else
     BUILD_FLAGS="--release"
 fi
 
+# Docker image names
+REPO=moesiftest.azurecr.io
+TAG_BUILD=$REPO/moesif-envoy-wasm-plugin-builder:latest
+TAG_ARTIFACT=$REPO/moesif-envoy-wasm-plugin:$TAG
+TAG_LATEST=$REPO/moesif-envoy-wasm-plugin:latest
+
 # Get the directory of this script to make sure we can run it from anywhere
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$SCRIPT_DIR/../.."
 SOURCE="$BASE_DIR/moesif-wasm"
 OUTPUT="$SOURCE/target/wasm32-wasi/$BUILD_VARIANT"
 
-# Docker image names
-TAG_BUILD=moesiftest.azurecr.io/moesif-envoy-wasm-plugin-builder:latest
-TAG_ARTIFACT=moesiftest.azurecr.io/moesif-envoy-wasm-plugin:latest
 
 # Create the build environment for the plugin
 docker build \
@@ -38,3 +42,6 @@ docker build \
  $OUTPUT
 
 docker push $TAG_ARTIFACT
+
+docker tag $TAG_ARTIFACT $TAG_LATEST
+docker push $TAG_LATEST
