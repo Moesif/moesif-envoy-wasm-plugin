@@ -10,7 +10,7 @@ ARG GROUP_ID
 
 # Create a new user with the host user's ID and group ID
 # This enables mounting the project directory as a volume for build caching
-RUN groupadd -g $GROUP_ID user && useradd -l -u $USER_ID -g user user
+RUN groupadd -f -g $GROUP_ID user && useradd -l -u $USER_ID -g user user
 USER user
 
 WORKDIR /build

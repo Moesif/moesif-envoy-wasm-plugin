@@ -11,57 +11,9 @@ spec:
   - number: 443
     name: https
     protocol: HTTPS
-  - number: 80
-    name: http
-    protocol: HTTP
   location: MESH_EXTERNAL
   resolution: DNS
-
 ---
-apiVersion: networking.istio.io/v1beta1
-kind: VirtualService
-metadata:
-  name: moesif-virtual-service
-  namespace: istio-ingress
-spec:
-  hosts:
-  - "*"
-  gateways:
-  - https-echo-gateway
-  http:
-  - match:
-    - uri:
-        exact: /moesif
-    route:
-    - destination:
-        host: api.moesif.net
-        port:
-          number: 443
-        subset: https
----
-apiVersion: networking.istio.io/v1beta1
-kind: VirtualService
-metadata:
-  name: moesif-http-virtual-service
-  namespace: istio-ingress
-spec:
-  hosts:
-  - "*"
-  gateways:
-  - http-echo-gateway
-  http:
-  - match:
-    - uri:
-        exact: /moesif
-    route:
-    - destination:
-        host: api.moesif.net
-        port:
-          number: 80
-        subset: http
-
----
-# Istio uses mTLS by default, but Moesif API does not support mTLS
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
@@ -69,18 +21,6 @@ metadata:
   namespace: istio-ingress
 spec:
   host: api.moesif.net
-  subsets:
-    - name: http
-      trafficPolicy:
-        portLevelSettings:
-          - port:
-              number: 80
-            tls:
-              mode: DISABLE
-    - name: https
-      trafficPolicy:
-        portLevelSettings:
-          - port:
-              number: 443
-            tls:
-              mode: SIMPLE  # This allows TLS for port 443
+  trafficPolicy:
+    tls:
+      mode: SIMPLE
