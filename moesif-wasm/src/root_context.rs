@@ -291,7 +291,13 @@ impl EventRootContext {
                 token_id
             }
             Err(e) => {
-                log::error!("Failed to dispatch HTTP call: {:?}", e);
+                log::error!(
+                    "Dispatch error {} upstream {} request to {} with body {}",
+                    &self.config.env.upstream,
+                    method,
+                    path,
+                    bodystr
+                );
                 0
             }
         }
