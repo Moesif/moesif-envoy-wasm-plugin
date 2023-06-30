@@ -20,14 +20,18 @@ pub struct EnvConfig {
     pub upstream: String,
     #[serde(default = "default_base_uri")]
     pub base_uri: String,
+    #[serde(default = "default_debug")]
+    pub debug: bool,
+    #[serde(default = "connection_timeout")]
+    pub connection_timeout: usize,
 }
 
 fn default_batch_max_size() -> usize {
-    10
+    100
 }
 
 fn default_batch_max_wait() -> usize {
-    2
+    2000
 }
 
 fn default_upstream() -> String {
@@ -36,6 +40,14 @@ fn default_upstream() -> String {
 
 fn default_base_uri() -> String {
     "api.moesif.net".to_string()
+}
+
+fn default_debug() -> bool {
+    false
+}
+
+fn connection_timeout() -> usize {
+    5000
 }
 
 #[derive(Default, Serialize, Deserialize, Debug)]

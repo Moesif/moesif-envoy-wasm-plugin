@@ -67,9 +67,14 @@ impl RootContext for EventRootContext {
                     };
                     self.config = Arc::new(config);
                     log::info!(
-                        "Loaded configuration: {:?}",
+                        "Loaded Moesif Application ID: {:?}",
                         self.config.env.moesif_application_id
                     );
+                    if self.config.env.debug {
+                        log::set_max_level(log::LevelFilter::Debug);
+                    } else {
+                        log::set_max_level(log::LevelFilter::Warn);
+                    }
                     true
                 }
                 Err(e) => {
@@ -85,13 +90,14 @@ impl RootContext for EventRootContext {
     }
 
     fn on_tick(&mut self) {
-        log::debug!("on_tick context_id {} at {}", self.context_id, Utc::now().to_rfc3339());
+        log::trace!("on_tick context_id {} at {}", self.context_id, Utc::now().to_rfc3339());
         // We set on_tick to 1ms at start up to work around a bug or limitation in Envoy
         // where dispatch http call does not work in on_configure or on_vm_start.
         // We set it back to 2s after the first tick.
         if self.is_start {
+            log::debug!("on_tick: first tick after on_configure");
             self.is_start = false;
-            let foo = self.set_tick_period(Duration::from_secs(2));
+            self.set_tick_period(Duration::from_millis(self.config.env.batch_max_wait as u64));
             self.request_config_api();
             self.request_rules_api();
         }
@@ -101,7 +107,7 @@ impl RootContext for EventRootContext {
     }
 
     fn on_queue_ready(&mut self, _queue_id: u32) {
-        log::debug!("on_queue_ready: {}", _queue_id);
+        log::trace!("on_queue_ready: {}", _queue_id);
         self.poll_queue();
         // This will send all full batches in the buffer to enforce the batch_max_size
         self.drain_and_send(self.config.env.batch_max_size);
@@ -248,7 +254,6 @@ impl EventRootContext {
         let content_length = body.len().to_string();
         let application_id = self.config.env.moesif_application_id.clone();
         let headers = vec![
-            (":scheme", "https"),
             (":method", method),
             (":path", path),
             (":authority", &self.config.env.base_uri),
@@ -258,7 +263,7 @@ impl EventRootContext {
             ("x-moesif-application-id", &application_id),
         ];
         let trailers = vec![];
-        let timeout = Duration::from_secs(5);
+        let timeout = Duration::from_millis(self.config.env.connection_timeout as u64);
         // encode body as a string to print
         let bodystr = std::str::from_utf8(&body).unwrap_or_default();
         log::info!(
