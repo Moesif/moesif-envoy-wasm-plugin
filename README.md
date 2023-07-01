@@ -110,8 +110,8 @@ These configuration options are specified as JSON in the `configuration` section
 | `user_id_header`       | String  | None                    | Optional. The header key for User Id. If provided, the corresponding header value is used as the User Id in Moesif event models.        |
 | `company_id_header`    | String  | None                    | Optional. The header key for Company Id. If provided, the corresponding header value is used as the Company Id in Moesif event models.  |
 | `batch_max_size`       | Integer | 100                     | Optional. The maximum batch size of events to be sent to Moesif.                                                                       |
-| `batch_max_wait`       | Integer | 2                       | Optional. The maximum wait time in seconds before a batch is sent to Moesif, regardless of the batch size.                              |
-| `upstream`             | String  | "moesif_api"            | Optional. The upstream cluster in Envoy that points to Moesif's API.                                                                            |
+| `batch_max_wait`       | Integer | 2000                    | Optional. The maximum wait time in milliseconds before a batch is sent to Moesif, regardless of the batch size.                              |
+| `upstream`             | String  | "moesif_api"            | Optional. The upstream cluster that points to Moesif's API.                                                                            |
 
 ### Example
 
