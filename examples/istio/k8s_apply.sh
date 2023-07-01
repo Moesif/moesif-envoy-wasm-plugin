@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-kubectl apply -f echo.yaml \
- -f istio-moesif-upstream.yaml \
- -f istio-envoy-filter.yaml \
- -f istio-echo-gateway-vservice.yaml
+kubectl apply -f echo-service.yaml \
+ -f istio-echo-inbound.yaml \
+ -f istio-moesif-outbound.yaml \
+ -f moesif-wasm-plugin.yaml

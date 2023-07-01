@@ -17,3 +17,4 @@ spec:
     user_id_header: X-User-Example-Header
     company_id_header: X-Company-Example-Header
     upstream: outbound|443||api.moesif.net
+    debug: true

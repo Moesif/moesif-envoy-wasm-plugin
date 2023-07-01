@@ -21,7 +21,6 @@ BASE_DIR="$SCRIPT_DIR/../.."
 SOURCE="$BASE_DIR/moesif-wasm"
 OUTPUT="$SOURCE/target/wasm32-wasi/$BUILD_VARIANT"
 
-
 # Create the build environment for the plugin
 docker build \
  --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) \
