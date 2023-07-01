@@ -169,6 +169,103 @@ If you're using Docker, you can use the provided `docker-compose.yaml` to easily
 
 Remember to replace `<YOUR APPLICATION ID HERE>` in `envoy.yaml` file with your actual Moesif Application Id. Your Moesif Application Id can be found in the [_Moesif Portal_](https://www.moesif.com/).
 
+### Moesif Istio WASM Plugin Example
+
+This README describes how to install and configure the Moesif Istio WASM Plugin with Minikube, using the Kubernetes resources provided.
+
+### Prerequisites
+
+You'll need access to a Kubernetes cluster into which to install the Moesif Istio WASM Plugin. This example uses Minikube to provide everything you need, but you can use any Kubernetes cluster:
+- [Istioctl](https://istio.io/latest/docs/setup/getting-started/#download) (v1.10.0 or later)
+- [Minikube](https://minikube.sigs.k8s.io/docs/start/) (v1.27 or later)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) (v1.25 or later)
+
+Start Minikube giving it enough resources:
+
+```bash
+minikube start --cpus 4 --memory 8192
+```
+
+### Istio Installation
+
+We're going to use the Istio CLI tool for the installation.
+
+1. Install the Istio base chart which includes cluster-wide resources used by the Istio operator:
+
+```bash
+istioctl install --set profile=demo -y
+```
+
+2. Check the status of the Istio system pods:
+
+```bash
+kubectl get pods -n istio-system
+```
+
+### Deploy the Moesif Istio WASM Plugin Example
+
+1. Navigate to the `examples/istio` directory in this repository:
+
+2. Apply the resources to your Minikube cluster.  This will create the echo service, Istio inbound configuration to route traffic to the echo service, Istio outbound configuration to allow Istio to contact Moesif's API, and the Moesif WASM plugin itself:
+
+```bash
+kubectl apply -f echo-service.yaml \
+ -f istio-echo-inbound.yaml \
+ -f istio-moesif-outbound.yaml \
+ -f moesif-wasm-plugin.yaml
+```
+
+3. Verify that the echo service is running:
+
+```bash
+kubectl get pods -n default
+```
+
+You should see the `echo` pod in the Running status.
+
+4. Test the echo service:
+
+```bash
+kubectl exec "$(kubectl get pod -l app=echo -o jsonpath={.items..metadata.name})" -c echo -- curl -sS localhost:5678
+```
+
+You should get a response: `Hello from echo service`.
+
+### Accessing the echo service via Istio Ingress Gateway
+
+To access the echo service via Istio Ingress Gateway, you first need to determine the ingress IP and ports:
+
+- For Minikube:
+
+```bash
+export INGRESS_HOST=$(minikube ip)
+export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
+```
+
+Now, you can send a request to the echo service:
+
+```bash
+curl -sS "http://${INGRESS_HOST}:${INGRESS_PORT}/echo"
+```
+
+The response should be `Hello from echo service`.
+
+### Moesif WASM Plugin Configuration
+
+This configuration allows the plugin to capture and log the requests and responses flowing through the Istio service mesh. To use the plugin, you need a Moesif application id, which is set in the `moesif_application_id` field in the plugin configuration. You can get this from your Moesif dashboard.
+
+Remember to replace the `moesif_application_id`, `user_id_header`, and `company_id_header` values in the `WasmPlugin` YAML definition with your actual values.
+
+### Finished, Check Logs
+
+After the configuration is applied, you can check the logs of the Istio ingress gateway to see the plugin in action.
+
+```bash
+kubectl logs -n istio-system -l istio=ingressgateway
+```
+
+You should see logs about the plugin's initialization and the intercepted requests and responses
+
 ## Other Integrations
 
 To view more documentation on integration options, please visit __[the Integration Options Documentation](https://www.moesif.com/docs/getting-started/integration-options/).__
