@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NAMESPACE="istio-ingress"
+NAMESPACE="istio-system"
 LABEL="istio=ingress"
 
 # Get the pod name

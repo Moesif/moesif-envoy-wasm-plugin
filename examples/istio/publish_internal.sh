@@ -10,7 +10,7 @@ else
 fi
 
 # Docker image names
-REPO=moesiftest.azurecr.io
+REPO=docker.io/brianmoesif/
 TAG_BUILD=$REPO/moesif-envoy-wasm-plugin-builder:latest
 TAG_ARTIFACT=$REPO/moesif-envoy-wasm-plugin:$TAG
 TAG_LATEST=$REPO/moesif-envoy-wasm-plugin:latest

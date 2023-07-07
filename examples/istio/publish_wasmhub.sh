@@ -38,7 +38,7 @@ docker run \
 
 # package the plugin into a docker image for deployment
 VERSION_TAG=$TAG_ARTIFACT:$TAG
-$WASME build precompiled moesif-wasm/target/wasm32-wasi/$BUILD_VARIANT/moesif_envoy_wasm_plugin.wasm --tag $VERSION_TAG
+$WASME build precompiled $BASE_DIR/moesif-wasm/target/wasm32-wasi/$BUILD_VARIANT/moesif_envoy_wasm_plugin.wasm --tag $VERSION_TAG --config $BASE_DIR/runtime-config.json
 $WASME push $VERSION_TAG
 
 LATEST_TAG=$TAG_ARTIFACT:latest

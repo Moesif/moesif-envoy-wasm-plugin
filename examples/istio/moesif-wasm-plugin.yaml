@@ -2,11 +2,11 @@ apiVersion: extensions.istio.io/v1alpha1
 kind: WasmPlugin
 metadata:
   name: moesif-plugin
-  namespace: istio-ingress
+  namespace: istio-system
 spec:
   selector:
     matchLabels:
-      istio: ingress
+      istio: ingressgateway
   url: oci://moesiftest.azurecr.io/moesif-envoy-wasm-plugin:latest
   imagePullPolicy: Always
   imagePullSecret: regcred

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NAMESPACE="istio-ingress"
+NAMESPACE="istio-system"
 LABEL="istio=ingress"
 
 NEW_POD_NAME=$(kubectl get pods -n $NAMESPACE -l $LABEL -o jsonpath='{.items[0].metadata.name}')

@@ -226,14 +226,33 @@ You should see the `echo` pod in the Running status.
 4. Test the echo service:
 
 ```bash
-kubectl exec "$(kubectl get pod -l app=echo -o jsonpath={.items..metadata.name})" -c echo -- curl -sS localhost:5678
+kubectl port-forward svc/echo 8080:80
 ```
 
-You should get a response: `Hello from echo service`.
+Now you can send a request to the echo service running inside the cluster from the host machine:
+
+```bash
+curl http://localhost:8080/echo
+```
+
+You should get a response: `Hello from echo service` validating the service is running.
+
+### Moesif WASM Plugin Configuration
+
+The WasmPlugin YAML definition in `moesif-wasm-plugin.yaml` configures the Moesif Istio WASM Plugin.  The pluginConfig section of the YAML definition is shown below:
+
+```yaml
+    moesif_application_id: <YOUR MOESIF APPLICATION ID>
+    upstream: outbound|443||api.moesif.net
+```
+
+This configuration allows the plugin to capture and log the requests and responses flowing through the Istio service mesh. To use the plugin, you need a Moesif application id, which is set in the `moesif_application_id` field in the plugin configuration. You can get this from your Moesif dashboard.
+
+Remember to replace the `moesif_application_id` and `upstream` values in with your actual values.  The upstream string value is the cluster name that points to Moesif's API in the Istio outbound configuration.  `debug` is set to `true` to enable debug logging for the example, but this should be set to `false` in production.
 
 ### Accessing the echo service via Istio Ingress Gateway
 
-To access the echo service via Istio Ingress Gateway, you first need to determine the ingress IP and ports:
+Next, access the echo service via Istio Ingress Gateway, you first need to determine the ingress IP and ports:
 
 - For Minikube:
 
@@ -242,7 +261,7 @@ export INGRESS_HOST=$(minikube ip)
 export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
 ```
 
-Now, you can send a request to the echo service:
+Now, you can send a request to the echo service through the Istio Ingress Gateway and the Moesif WASM Plugin:
 
 ```bash
 curl -sS "http://${INGRESS_HOST}:${INGRESS_PORT}/echo"
@@ -250,21 +269,9 @@ curl -sS "http://${INGRESS_HOST}:${INGRESS_PORT}/echo"
 
 The response should be `Hello from echo service`.
 
-### Moesif WASM Plugin Configuration
-
-This configuration allows the plugin to capture and log the requests and responses flowing through the Istio service mesh. To use the plugin, you need a Moesif application id, which is set in the `moesif_application_id` field in the plugin configuration. You can get this from your Moesif dashboard.
-
-Remember to replace the `moesif_application_id`, `user_id_header`, and `company_id_header` values in the `WasmPlugin` YAML definition with your actual values.
-
 ### Finished, Check Logs
 
-After the configuration is applied, you can check the logs of the Istio ingress gateway to see the plugin in action.
-
-```bash
-kubectl logs -n istio-system -l istio=ingressgateway
-```
-
-You should see logs about the plugin's initialization and the intercepted requests and responses
+After the configuration is applied, you can check the events in your https://moesif.com account to see the plugin in action.
 
 ## Other Integrations
 

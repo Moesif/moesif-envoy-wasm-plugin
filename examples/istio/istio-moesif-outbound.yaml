@@ -3,7 +3,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: ServiceEntry
 metadata:
   name: moesif
-  namespace: istio-ingress
+  namespace: istio-system
 spec:
   hosts:
   - api.moesif.net
@@ -18,7 +18,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
   name: moesif
-  namespace: istio-ingress
+  namespace: istio-system
 spec:
   host: api.moesif.net
   trafficPolicy:
