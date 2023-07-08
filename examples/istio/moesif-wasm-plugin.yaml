@@ -7,9 +7,8 @@ spec:
   selector:
     matchLabels:
       istio: ingressgateway
-  url: oci://moesiftest.azurecr.io/moesif-envoy-wasm-plugin:latest
+  url: oci://docker.io/moesif/moesif-envoy-wasm-plugin:latest
   imagePullPolicy: Always
-  imagePullSecret: regcred
   phase: AUTHZ
   priority: 10
   pluginConfig:
