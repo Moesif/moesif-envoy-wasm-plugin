@@ -23,6 +23,7 @@ impl Context for EventHttpContext {}
 
 impl HttpContext for EventHttpContext {
     fn on_http_request_headers(&mut self, _: usize, _: bool) -> Action {
+        self.event.direction = "Incoming".to_string();
         self.event.request.time = Utc::now().to_rfc3339();
         self.event.request.headers =
             EventHttpContext::header_list_to_map(self.get_http_request_headers());
