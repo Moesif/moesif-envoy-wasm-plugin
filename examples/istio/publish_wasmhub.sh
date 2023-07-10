@@ -11,6 +11,8 @@ fi
 
 TAG=${1:-latest}
 
+# WASME is use to publish to WebAssemblyHub
+# https://docs.solo.io/web-assembly-hub/latest/installation/
 WASME=$HOME/.wasme/bin/wasme
 
 # Get the directory of this script to make sure we can run it from anywhere
