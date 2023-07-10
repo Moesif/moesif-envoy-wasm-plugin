@@ -1,5 +1,6 @@
-
 use std::collections::HashMap;
+use std::net::IpAddr;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use base64::Engine as _;
@@ -22,15 +23,25 @@ impl Context for EventHttpContext {}
 
 impl HttpContext for EventHttpContext {
     fn on_http_request_headers(&mut self, _: usize, _: bool) -> Action {
+        self.event.direction = "Incoming".to_string();
         self.event.request.time = Utc::now().to_rfc3339();
-        self.event.request.headers = EventHttpContext::header_list_to_map(self.get_http_request_headers());
+        self.event.request.headers =
+            EventHttpContext::header_list_to_map(self.get_http_request_headers());
+        // read values from the special :path and :method headers and any other : prefixed headers before removing them
+        self.event.request.uri = self.event.request.headers.get(":path").unwrap_or(&"".into()).clone();
+        self.event.request.verb = self
+            .get_http_request_header(":method")
+            .unwrap_or_else(|| "GET".into());
+        // remove the special : prefixed headers
+        self.event
+            .request
+            .headers
+            .retain(|k, _| !k.starts_with(":"));
 
-        self.event.request.uri = self.get_http_request_header(":path").unwrap_or_default();
-        self.event.request.verb = self.get_http_request_header(":method").unwrap_or_else(|| "GET".into());
+        self.event.request.ip_address = EventHttpContext::get_client_ip(&self.event.request.headers);
         self.event.request.api_version = self.get_http_request_header("x-api-version");
-        self.event.request.ip_address = self.get_http_request_header("x-forwarded-for");
         self.event.request.transfer_encoding = self.get_http_request_header("transfer-encoding");
-        self.event.request.headers.retain(|k, _| !k.starts_with(":"));
+        
         if let Some(user_id_header) = &self.config.env.user_id_header {
             self.event.user_id = self.get_http_request_header(user_id_header)
         }
@@ -57,7 +68,9 @@ impl HttpContext for EventHttpContext {
     }
 
     fn on_http_response_headers(&mut self, _: usize, _: bool) -> Action {
-        let status_str = self.get_http_response_header(":status").unwrap_or("0".to_string());
+        let status_str = self
+            .get_http_response_header(":status")
+            .unwrap_or("0".to_string());
         let mut response = ResponseInfo {
             time: Utc::now().to_rfc3339(),
             status: status_str.parse::<usize>().unwrap_or(0),
@@ -109,7 +122,39 @@ impl EventHttpContext {
     }
 
     fn header_list_to_map(headers: Vec<(String, String)>) -> HashMap<String, String> {
-        headers.into_iter().collect::<HashMap<_, _>>()
+        headers
+            .into_iter()
+            .map(|(k, v)| (k.to_lowercase(), v))
+            .collect::<HashMap<_, _>>()
+    }
+
+    fn get_client_ip(headers: &HashMap<String, String>) -> Option<String> {
+        let possible_headers = vec![
+            "x-client-ip",
+            "x-forwarded-for",
+            "cf-connecting-ip",
+            "fastly-client-ip",
+            "true-client-ip",
+            "x-real-ip",
+            "x-cluster-client-ip",
+            "x-forwarded",
+            "forwarded-for",
+            "forwarded",
+            "x-appengine-user-ip",
+            "cf-pseudo-ipv4",
+        ];
+
+        for header in possible_headers {
+            if let Some(value) = headers.get(header) {
+                let ips: Vec<&str> = value.split(",").collect();
+                for ip in ips {
+                    if IpAddr::from_str(ip.trim()).is_ok() {
+                        return Some(ip.trim().to_string());
+                    }
+                }
+            }
+        }
+        None
     }
 
     fn body_bytes_to_value(body: Vec<u8>, content_type: Option<&String>) -> serde_json::Value {

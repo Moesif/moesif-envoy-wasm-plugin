@@ -31,4 +31,7 @@ pub struct Event {
     pub user_id: Option<String>,
     pub company_id: Option<String>,
     pub metadata: serde_json::Value,
+    pub direction: String,
+    pub session_token: Option<String>,
+    pub blocked_by: Option<String>,
 }

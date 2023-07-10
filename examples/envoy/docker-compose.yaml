@@ -1,8 +1,9 @@
 version: '3.8'
 services:
   rust-builder:
+    image: moesiftest.azurecr.io/moesif-envoy-wasm-plugin-builder:latest
     build: 
-      context: ../../moesif-wasm/
+      context: ../../
       dockerfile: Cargo-build.dockerfile
       args:
         USER_ID: ${UID:-1000}

@@ -1,0 +1,26 @@
+# This file is used to configure Istio to allow traffic to Moesif API
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: moesif
+  namespace: istio-system
+spec:
+  hosts:
+  - api.moesif.net
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: moesif
+  namespace: istio-system
+spec:
+  host: api.moesif.net
+  trafficPolicy:
+    tls:
+      mode: SIMPLE

@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use proxy_wasm::traits::{Context, HttpContext, RootContext};
 use proxy_wasm::types::{Bytes, ContextType};
 
 use crate::config::{AppConfigResponse, Config, EnvConfig};
 use crate::http_callback::{get_header, Handler, HttpCallbackManager};
 use crate::http_context::EventHttpContext;
-use crate::rules::{GovernanceRule, GovernanceRulesResponse, template, Variable};
+use crate::rules::{template, GovernanceRule, GovernanceRulesResponse};
 
 const EVENT_QUEUE: &str = "moesif_event_queue";
 
@@ -67,9 +67,14 @@ impl RootContext for EventRootContext {
                     };
                     self.config = Arc::new(config);
                     log::info!(
-                        "Loaded configuration: {:?}",
+                        "Loaded Moesif Application ID: {:?}",
                         self.config.env.moesif_application_id
                     );
+                    if self.config.env.debug {
+                        log::set_max_level(log::LevelFilter::Debug);
+                    } else {
+                        log::set_max_level(log::LevelFilter::Warn);
+                    }
                     true
                 }
                 Err(e) => {
@@ -85,15 +90,21 @@ impl RootContext for EventRootContext {
     }
 
     fn on_tick(&mut self) {
-        log::debug!("on_tick context_id {} at {}", self.context_id, Utc::now().to_rfc3339());
+        log::trace!(
+            "on_tick context_id {} at {}",
+            self.context_id,
+            Utc::now().to_rfc3339()
+        );
         // We set on_tick to 1ms at start up to work around a bug or limitation in Envoy
         // where dispatch http call does not work in on_configure or on_vm_start.
         // We set it back to 2s after the first tick.
         if self.is_start {
+            log::debug!("on_tick: first tick after on_configure");
             self.is_start = false;
-            let foo = self.set_tick_period(Duration::from_secs(2));
-            self.request_config_api();
-            self.request_rules_api();
+            self.set_tick_period(Duration::from_millis(self.config.env.batch_max_wait as u64));
+            // these init calls aren't required until governance rule support is added
+            // self.request_config_api();
+            // self.request_rules_api();
         }
         self.poll_queue();
         // This will send all events in the buffer to enforce the batch_max_wait
@@ -101,7 +112,7 @@ impl RootContext for EventRootContext {
     }
 
     fn on_queue_ready(&mut self, _queue_id: u32) {
-        log::debug!("on_queue_ready: {}", _queue_id);
+        log::trace!("on_queue_ready: {}", _queue_id);
         self.poll_queue();
         // This will send all full batches in the buffer to enforce the batch_max_size
         self.drain_and_send(self.config.env.batch_max_size);
@@ -156,7 +167,11 @@ impl EventRootContext {
                 Box::new(|headers, _| {
                     let config_etag = get_header(&headers, "X-Moesif-Config-Etag");
                     let rules_etag = get_header(&headers, "X-Moesif-Rules-Etag");
-                    log::info!("Event Response eTags: config={:?} rules={:?}", config_etag, rules_etag);
+                    log::info!(
+                        "Event Response eTags: config={:?} rules={:?}",
+                        config_etag,
+                        rules_etag
+                    );
                 }),
             );
         }
@@ -189,15 +204,20 @@ impl EventRootContext {
             "/v1/config",
             Bytes::new(),
             Box::new(|headers, body| {
-                log::info!("Config Response headers: {:?}", headers);
+                let status = get_header(&headers, ":status").unwrap_or_default();
+                log::info!("Config Response status {:?}", status);
                 if let Some(body) = body {
-                    let mut app_config_response =
-                        serde_json::from_slice::<AppConfigResponse>(&body).unwrap();
-                    app_config_response.e_tag = get_header(&headers, "X-Moesif-Config-Etag");
-                    log::info!(
-                        "Config Response app_config_response: {:?}",
-                        app_config_response
-                    );
+                    match serde_json::from_slice::<AppConfigResponse>(&body) {
+                        Ok(mut app_config_response) => {
+                            log::info!("Config Response app_config_response: {:?}", app_config_response);
+                            app_config_response.e_tag = get_header(&headers, "X-Moesif-Config-Etag");
+                        }
+                        Err(e) => {
+                            log::error!("No valid AppConfigResponse: {:?}", e);
+                        }
+                    }
+                    // add error handling
+                    
                 } else {
                     log::warn!("Config Response body: None");
                 }
@@ -211,18 +231,17 @@ impl EventRootContext {
             "/v1/rules",
             Bytes::new(),
             Box::new(|headers, body| {
-                log::info!("Rules Response headers: {:?}", headers);
                 let e_tag = get_header(&headers, "X-Moesif-Config-Etag");
+                let status = get_header(&headers, ":status");
+                log::info!("Rules Response status {:?} e_tag {:?}", status, e_tag);
                 if let Some(body) = body {
-                    // what to do in these callbacks on error?
-                    let rules = serde_json::from_slice::<Vec<GovernanceRule>>(&body).unwrap();
+                    // This will provide a defult empty vector if there is no rules response
+                    let rules = serde_json::from_slice::<Vec<GovernanceRule>>(&body).unwrap_or_default();
                     let rules_response = GovernanceRulesResponse { rules, e_tag };
                     log::info!("Rules Response rules_response: {:?}", rules_response);
                     for rule in rules_response.rules {
                         if let (Some(body), Some(variables)) = (rule.response.body, rule.variables)
                         {
-                            log::info!("Rule body: {:?}", body);
-                            log::info!("Rule variables: {:?}", variables);
                             let variables: HashMap<String, String> = variables
                                 .into_iter()
                                 .map(|variable| (variable.name, variable.path))
@@ -248,7 +267,6 @@ impl EventRootContext {
         let content_length = body.len().to_string();
         let application_id = self.config.env.moesif_application_id.clone();
         let headers = vec![
-            (":scheme", "https"),
             (":method", method),
             (":path", path),
             (":authority", &self.config.env.base_uri),
@@ -258,7 +276,7 @@ impl EventRootContext {
             ("x-moesif-application-id", &application_id),
         ];
         let trailers = vec![];
-        let timeout = Duration::from_secs(5);
+        let timeout = Duration::from_millis(self.config.env.connection_timeout as u64);
         // encode body as a string to print
         let bodystr = std::str::from_utf8(&body).unwrap_or_default();
         log::info!(
@@ -268,10 +286,6 @@ impl EventRootContext {
             path,
             bodystr
         );
-        // log headers
-        for (name, value) in &headers {
-            log::info!("Header: {}: {}", name, value);
-        }
         // Dispatch the HTTP request. The result is a token that uniquely identifies this call
         match self.dispatch_http_call(
             &self.config.env.upstream,
@@ -286,7 +300,14 @@ impl EventRootContext {
                 token_id
             }
             Err(e) => {
-                log::error!("Failed to dispatch HTTP call: {:?}", e);
+                log::error!(
+                    "Dispatch error {:?} {} upstream {} request to {} with body {}",
+                    e,
+                    &self.config.env.upstream,
+                    method,
+                    path,
+                    bodystr
+                );
                 0
             }
         }

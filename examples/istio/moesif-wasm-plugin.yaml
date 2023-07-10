@@ -1,0 +1,19 @@
+apiVersion: extensions.istio.io/v1alpha1
+kind: WasmPlugin
+metadata:
+  name: moesif-plugin
+  namespace: istio-system
+spec:
+  selector:
+    matchLabels:
+      istio: ingressgateway
+  url: oci://docker.io/moesif/moesif-envoy-wasm-plugin:latest
+  imagePullPolicy: Always
+  phase: AUTHZ
+  priority: 10
+  pluginConfig:
+    moesif_application_id: <YOUR MOESIF APPLICATION ID>
+    user_id_header: X-User-Example-Header
+    company_id_header: X-Company-Example-Header
+    upstream: outbound|443||api.moesif.net
+    debug: true
