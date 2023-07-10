@@ -102,8 +102,9 @@ impl RootContext for EventRootContext {
             log::debug!("on_tick: first tick after on_configure");
             self.is_start = false;
             self.set_tick_period(Duration::from_millis(self.config.env.batch_max_wait as u64));
-            self.request_config_api();
-            self.request_rules_api();
+            // these init calls aren't required until governance rule support is added
+            // self.request_config_api();
+            // self.request_rules_api();
         }
         self.poll_queue();
         // This will send all events in the buffer to enforce the batch_max_wait
@@ -203,15 +204,20 @@ impl EventRootContext {
             "/v1/config",
             Bytes::new(),
             Box::new(|headers, body| {
-                log::info!("Config Response headers: {:?}", headers);
+                let status = get_header(&headers, ":status").unwrap_or_default();
+                log::info!("Config Response status {:?}", status);
                 if let Some(body) = body {
-                    let mut app_config_response =
-                        serde_json::from_slice::<AppConfigResponse>(&body).unwrap();
-                    app_config_response.e_tag = get_header(&headers, "X-Moesif-Config-Etag");
-                    log::info!(
-                        "Config Response app_config_response: {:?}",
-                        app_config_response
-                    );
+                    match serde_json::from_slice::<AppConfigResponse>(&body) {
+                        Ok(mut app_config_response) => {
+                            log::info!("Config Response app_config_response: {:?}", app_config_response);
+                            app_config_response.e_tag = get_header(&headers, "X-Moesif-Config-Etag");
+                        }
+                        Err(e) => {
+                            log::error!("No valid AppConfigResponse: {:?}", e);
+                        }
+                    }
+                    // add error handling
+                    
                 } else {
                     log::warn!("Config Response body: None");
                 }
@@ -226,9 +232,11 @@ impl EventRootContext {
             Bytes::new(),
             Box::new(|headers, body| {
                 let e_tag = get_header(&headers, "X-Moesif-Config-Etag");
+                let status = get_header(&headers, ":status");
+                log::info!("Rules Response status {:?} e_tag {:?}", status, e_tag);
                 if let Some(body) = body {
-                    // what to do in these callbacks on error?
-                    let rules = serde_json::from_slice::<Vec<GovernanceRule>>(&body).unwrap();
+                    // This will provide a defult empty vector if there is no rules response
+                    let rules = serde_json::from_slice::<Vec<GovernanceRule>>(&body).unwrap_or_default();
                     let rules_response = GovernanceRulesResponse { rules, e_tag };
                     log::info!("Rules Response rules_response: {:?}", rules_response);
                     for rule in rules_response.rules {
