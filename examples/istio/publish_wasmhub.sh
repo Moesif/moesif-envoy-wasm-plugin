@@ -22,7 +22,7 @@ SOURCE="$BASE_DIR/moesif-wasm"
 OUTPUT="$SOURCE/target/wasm32-wasi/$BUILD_VARIANT"
 
 # Docker image names
-TAG_BUILD=moesiftest.azurecr.io/moesif-envoy-wasm-plugin-builder:latest
+TAG_BUILD=docker.io/moesif/moesif-envoy-wasm-plugin-builder:latest
 TAG_ARTIFACT=webassemblyhub.io/brian_moesif/moesif_envoy_wasm_plugin
 
 # Create the build environment for the plugin
