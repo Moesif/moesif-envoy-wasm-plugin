@@ -1,6 +1,6 @@
 [package]
 name = "moesif_envoy_wasm_plugin"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2018"
 
 [lib]
